@@ -10,6 +10,7 @@ import {
   getSoftwareAppSchema,
 } from "@/lib/schemas";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pdfkit.pro"),
@@ -98,6 +99,7 @@ export default function RootLayout({
         <JsonLd data={getOrganizationSchema()} />
         <JsonLd data={getSoftwareAppSchema()} />
         <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   );
