@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
 import { downloadBlob } from "@/lib/utils";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function WordToPDFPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -105,6 +106,7 @@ export default function WordToPDFPage() {
           </Button>
         )}
       </div>
+      <ToolSEOContent toolId="word-to-pdf" toolName="Word to PDF" />
     </ToolLayout>
   );
 }

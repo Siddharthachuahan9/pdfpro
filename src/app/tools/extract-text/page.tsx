@@ -7,6 +7,7 @@ import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
 import { extractTextFromPDF } from "@/lib/pdf/pdf-render";
 import { downloadBlob } from "@/lib/utils";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function ExtractTextPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -104,6 +105,7 @@ export default function ExtractTextPage() {
           </div>
         )}
       </div>
+      <ToolSEOContent toolId="extract-text" toolName="Extract Text" />
     </ToolLayout>
   );
 }

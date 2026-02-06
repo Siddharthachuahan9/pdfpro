@@ -8,6 +8,7 @@ import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
 import { downloadPDF } from "@/lib/utils";
 import { PDFDocument } from "pdf-lib";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function UnlockPDFPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -105,6 +106,7 @@ export default function UnlockPDFPage() {
           </Button>
         )}
       </div>
+      <ToolSEOContent toolId="unlock-pdf" toolName="Unlock PDF" />
     </ToolLayout>
   );
 }

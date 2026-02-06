@@ -9,6 +9,7 @@ import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
 import { cropPDF } from "@/lib/pdf/pdf-utils";
 import { downloadPDF } from "@/lib/utils";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function CropPDFPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -100,6 +101,7 @@ export default function CropPDFPage() {
           </Button>
         )}
       </div>
+      <ToolSEOContent toolId="crop-pdf" toolName="Crop PDF" />
     </ToolLayout>
   );
 }

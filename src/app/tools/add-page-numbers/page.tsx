@@ -9,6 +9,7 @@ import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
 import { addPageNumbers } from "@/lib/pdf/pdf-utils";
 import { downloadPDF } from "@/lib/utils";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function AddPageNumbersPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -107,6 +108,7 @@ export default function AddPageNumbersPage() {
           </Button>
         )}
       </div>
+      <ToolSEOContent toolId="add-page-numbers" toolName="Add Page Numbers" />
     </ToolLayout>
   );
 }

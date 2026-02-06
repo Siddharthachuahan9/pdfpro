@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
 import { pdfToImages } from "@/lib/pdf/pdf-render";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function PDFToJPGPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -110,6 +111,7 @@ export default function PDFToJPGPage() {
           </div>
         )}
       </div>
+      <ToolSEOContent toolId="pdf-to-jpg" toolName="PDF to JPG" />
     </ToolLayout>
   );
 }

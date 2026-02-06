@@ -1,0 +1,16 @@
+{
+  "name": "pdfkit.pro",
+  "short_name": "pdfkit",
+  "description": "Free browser-based PDF tools. Fast. Private. No signup.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

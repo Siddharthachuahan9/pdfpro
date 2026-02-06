@@ -8,6 +8,7 @@ import { FileUpload } from "@/components/shared/file-upload";
 import { deletePages, getPDFPageCount } from "@/lib/pdf/pdf-utils";
 import { downloadPDF } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function DeletePagesPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -122,6 +123,7 @@ export default function DeletePagesPage() {
           </Button>
         )}
       </div>
+      <ToolSEOContent toolId="delete-pages" toolName="Delete Pages" />
     </ToolLayout>
   );
 }

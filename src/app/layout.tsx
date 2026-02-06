@@ -3,26 +3,74 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/shared/theme-provider";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { JsonLd } from "@/components/seo/json-ld";
+import {
+  getWebsiteSchema,
+  getOrganizationSchema,
+  getSoftwareAppSchema,
+} from "@/lib/schemas";
 
 export const metadata: Metadata = {
-  title: "pdfkit.pro - All-in-One PDF Toolkit",
+  metadataBase: new URL("https://pdfkit.pro"),
+  title: {
+    default: "pdfkit.pro - Free Online PDF Tools | Edit, Merge, Compress PDF",
+    template: "%s | pdfkit.pro",
+  },
   description:
-    "Free browser-based PDF tools. Merge, split, compress, convert PDFs and more. No uploads, no signup. Everything runs locally in your browser.",
+    "Free browser-based PDF tools. Merge, split, compress, convert, edit, sign, and chat with PDFs. No uploads, no signup. 100% private — everything runs locally in your browser.",
   keywords: [
     "PDF tools",
     "merge PDF",
     "split PDF",
     "compress PDF",
     "convert PDF",
-    "browser PDF",
-    "free PDF tools",
-    "online PDF editor",
+    "edit PDF online",
+    "free PDF editor",
+    "browser PDF tools",
+    "online PDF tools",
+    "PDF to JPG",
+    "chat with PDF",
+    "AI PDF tools",
+    "sign PDF",
+    "watermark PDF",
   ],
+  authors: [{ name: "Sidheart" }],
+  creator: "Sidheart",
+  publisher: "pdfkit.pro",
   openGraph: {
-    title: "pdfkit.pro - All-in-One PDF Toolkit",
-    description: "Free browser-based PDF tools. Fast. Private. No signup required.",
+    title: "pdfkit.pro - Free Online PDF Tools",
+    description:
+      "20+ free browser-based PDF tools. Edit, merge, compress, convert PDFs and more. Fast, private, no signup.",
+    url: "https://pdfkit.pro",
+    siteName: "pdfkit.pro",
     type: "website",
+    locale: "en_US",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "pdfkit.pro - Free Online PDF Tools",
+    description:
+      "20+ free browser-based PDF tools. Edit, merge, compress, convert PDFs. Fast, private, no signup.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: "https://pdfkit.pro",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -45,6 +93,9 @@ export default function RootLayout({
             <Footer />
           </div>
         </ThemeProvider>
+        <JsonLd data={getWebsiteSchema()} />
+        <JsonLd data={getOrganizationSchema()} />
+        <JsonLd data={getSoftwareAppSchema()} />
       </body>
     </html>
   );

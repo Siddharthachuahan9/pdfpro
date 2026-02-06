@@ -28,6 +28,7 @@ import { FileUpload } from "@/components/shared/file-upload";
 import { downloadPDF } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 type EditTool = "select" | "text" | "whiteout" | "image" | "draw";
 
@@ -1023,6 +1024,7 @@ export default function EditPDFPage() {
           </div>
         </div>
       )}
+      <ToolSEOContent toolId="edit-pdf" toolName="Edit PDF" />
     </ToolLayout>
   );
 }

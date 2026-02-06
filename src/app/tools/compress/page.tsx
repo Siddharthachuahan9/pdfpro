@@ -7,6 +7,7 @@ import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
 import { compressPDF } from "@/lib/pdf/pdf-utils";
 import { downloadPDF, formatFileSize } from "@/lib/utils";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function CompressPDFPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -110,6 +111,7 @@ export default function CompressPDFPage() {
           </div>
         )}
       </div>
+      <ToolSEOContent toolId="compress" toolName="Compress PDF" />
     </ToolLayout>
   );
 }

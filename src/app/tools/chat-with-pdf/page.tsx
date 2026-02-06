@@ -9,6 +9,7 @@ import { FileUpload } from "@/components/shared/file-upload";
 import { extractTextFromPDF } from "@/lib/pdf/pdf-render";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 interface Message {
   id: string;
@@ -544,6 +545,7 @@ export default function ChatWithPDFPage() {
           </div>
         )}
       </div>
+      <ToolSEOContent toolId="chat-with-pdf" toolName="Chat with PDF" />
     </ToolLayout>
   );
 }

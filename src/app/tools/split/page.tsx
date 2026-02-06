@@ -8,6 +8,7 @@ import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
 import { splitPDF, getPDFPageCount } from "@/lib/pdf/pdf-utils";
 import { downloadPDF } from "@/lib/utils";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function SplitPDFPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -151,6 +152,7 @@ export default function SplitPDFPage() {
           </div>
         )}
       </div>
+      <ToolSEOContent toolId="split" toolName="Split PDF" />
     </ToolLayout>
   );
 }

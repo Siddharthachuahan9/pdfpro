@@ -7,6 +7,7 @@ import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
 import { imagesToPDF } from "@/lib/pdf/pdf-utils";
 import { downloadPDF } from "@/lib/utils";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function JPGToPDFPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -82,6 +83,7 @@ export default function JPGToPDFPage() {
           </Button>
         )}
       </div>
+      <ToolSEOContent toolId="jpg-to-pdf" toolName="JPG to PDF" />
     </ToolLayout>
   );
 }

@@ -7,6 +7,7 @@ import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
 import { extractTextFromPDF } from "@/lib/pdf/pdf-render";
 import { downloadBlob } from "@/lib/utils";
+import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function PDFToWordPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -102,6 +103,7 @@ export default function PDFToWordPage() {
           </div>
         )}
       </div>
+      <ToolSEOContent toolId="pdf-to-word" toolName="PDF to Word" />
     </ToolLayout>
   );
 }

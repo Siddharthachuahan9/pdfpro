@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed"/>
+      <stop offset="100%" style="stop-color:#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <!-- Icon: Document with sparkle -->
+  <rect x="4" y="4" width="28" height="36" rx="4" fill="url(#grad)"/>
+  <rect x="10" y="12" width="16" height="2" rx="1" fill="white" opacity="0.9"/>
+  <rect x="10" y="18" width="12" height="2" rx="1" fill="white" opacity="0.7"/>
+  <rect x="10" y="24" width="14" height="2" rx="1" fill="white" opacity="0.5"/>
+  <!-- Sparkle -->
+  <path d="M30 4 L32 10 L38 8 L34 14 L40 16 L34 18 L36 24 L30 20 L28 26 L28 20 L22 18 L28 16 L26 10 L30 14Z" fill="#f59e0b" opacity="0.9"/>
+  <!-- Text -->
+  <text x="46" y="32" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="26" fill="#fafafa">pdf<tspan fill="url(#grad)">kit</tspan><tspan fill="#94a3b8" font-weight="500">.pro</tspan></text>
+</svg>

@@ -39,7 +39,7 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-sm mb-3">More Tools</h4>
             <ul className="space-y-2">
-              {["Add Watermark", "Sign PDF", "Extract Text", "Protect PDF"].map((tool) => (
+              {["Edit PDF", "Chat with PDF", "Sign PDF", "Extract Text"].map((tool) => (
                 <li key={tool}>
                   <Link
                     href={`/tools/${tool.toLowerCase().replace(/ /g, "-")}`}
@@ -57,7 +57,9 @@ export function Footer() {
             <ul className="space-y-2">
               {[
                 { label: "About", href: "/about" },
+                { label: "Blog", href: "/blog" },
                 { label: "Privacy Policy", href: "/privacy" },
+                { label: "Terms of Service", href: "/terms" },
                 { label: "All Tools", href: "/tools" },
               ].map((link) => (
                 <li key={link.label}>
