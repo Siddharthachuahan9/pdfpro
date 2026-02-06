@@ -1,0 +1,202 @@
+import {
+  Merge,
+  Split,
+  Minimize2,
+  Image,
+  FileImage,
+  ImagePlus,
+  FileText,
+  FileOutput,
+  Type,
+  Droplets,
+  RotateCw,
+  Trash2,
+  ArrowUpDown,
+  Hash,
+  PenTool,
+  Lock,
+  Unlock,
+  Crop,
+  LucideIcon,
+} from "lucide-react";
+
+export interface Tool {
+  id: string;
+  name: string;
+  description: string;
+  icon: LucideIcon;
+  href: string;
+  category: string;
+  color: string;
+}
+
+export const tools: Tool[] = [
+  {
+    id: "merge",
+    name: "Merge PDF",
+    description: "Combine multiple PDFs into one document",
+    icon: Merge,
+    href: "/tools/merge",
+    category: "Organize",
+    color: "from-violet-500 to-purple-600",
+  },
+  {
+    id: "split",
+    name: "Split PDF",
+    description: "Extract pages or split PDF into multiple files",
+    icon: Split,
+    href: "/tools/split",
+    category: "Organize",
+    color: "from-blue-500 to-cyan-500",
+  },
+  {
+    id: "compress",
+    name: "Compress PDF",
+    description: "Reduce PDF file size while keeping quality",
+    icon: Minimize2,
+    href: "/tools/compress",
+    category: "Optimize",
+    color: "from-green-500 to-emerald-500",
+  },
+  {
+    id: "pdf-to-jpg",
+    name: "PDF to JPG",
+    description: "Convert PDF pages to JPG images",
+    icon: Image,
+    href: "/tools/pdf-to-jpg",
+    category: "Convert",
+    color: "from-orange-500 to-amber-500",
+  },
+  {
+    id: "jpg-to-pdf",
+    name: "JPG to PDF",
+    description: "Convert JPG images to a PDF document",
+    icon: FileImage,
+    href: "/tools/jpg-to-pdf",
+    category: "Convert",
+    color: "from-pink-500 to-rose-500",
+  },
+  {
+    id: "png-to-pdf",
+    name: "PNG to PDF",
+    description: "Convert PNG images to a PDF document",
+    icon: ImagePlus,
+    href: "/tools/png-to-pdf",
+    category: "Convert",
+    color: "from-teal-500 to-cyan-500",
+  },
+  {
+    id: "word-to-pdf",
+    name: "Word to PDF",
+    description: "Convert Word documents to PDF format",
+    icon: FileText,
+    href: "/tools/word-to-pdf",
+    category: "Convert",
+    color: "from-blue-600 to-indigo-600",
+  },
+  {
+    id: "pdf-to-word",
+    name: "PDF to Word",
+    description: "Extract text from PDF to editable format",
+    icon: FileOutput,
+    href: "/tools/pdf-to-word",
+    category: "Convert",
+    color: "from-indigo-500 to-violet-500",
+  },
+  {
+    id: "extract-text",
+    name: "Extract Text",
+    description: "Extract all text content from a PDF",
+    icon: Type,
+    href: "/tools/extract-text",
+    category: "Extract",
+    color: "from-slate-500 to-gray-600",
+  },
+  {
+    id: "watermark",
+    name: "Add Watermark",
+    description: "Add text watermark to PDF pages",
+    icon: Droplets,
+    href: "/tools/watermark",
+    category: "Edit",
+    color: "from-cyan-500 to-blue-500",
+  },
+  {
+    id: "rotate",
+    name: "Rotate PDF",
+    description: "Rotate PDF pages to any angle",
+    icon: RotateCw,
+    href: "/tools/rotate",
+    category: "Edit",
+    color: "from-amber-500 to-yellow-500",
+  },
+  {
+    id: "delete-pages",
+    name: "Delete Pages",
+    description: "Remove unwanted pages from your PDF",
+    icon: Trash2,
+    href: "/tools/delete-pages",
+    category: "Edit",
+    color: "from-red-500 to-rose-600",
+  },
+  {
+    id: "reorder-pages",
+    name: "Reorder Pages",
+    description: "Rearrange pages in your PDF document",
+    icon: ArrowUpDown,
+    href: "/tools/reorder-pages",
+    category: "Organize",
+    color: "from-purple-500 to-fuchsia-500",
+  },
+  {
+    id: "add-page-numbers",
+    name: "Add Page Numbers",
+    description: "Add page numbers to your PDF",
+    icon: Hash,
+    href: "/tools/add-page-numbers",
+    category: "Edit",
+    color: "from-emerald-500 to-green-600",
+  },
+  {
+    id: "sign-pdf",
+    name: "Sign PDF",
+    description: "Draw and place your signature on a PDF",
+    icon: PenTool,
+    href: "/tools/sign-pdf",
+    category: "Edit",
+    color: "from-violet-600 to-purple-700",
+  },
+  {
+    id: "protect-pdf",
+    name: "Protect PDF",
+    description: "Add password protection to your PDF",
+    icon: Lock,
+    href: "/tools/protect-pdf",
+    category: "Security",
+    color: "from-red-600 to-orange-600",
+  },
+  {
+    id: "unlock-pdf",
+    name: "Unlock PDF",
+    description: "Remove password from a protected PDF",
+    icon: Unlock,
+    href: "/tools/unlock-pdf",
+    category: "Security",
+    color: "from-green-600 to-teal-600",
+  },
+  {
+    id: "crop-pdf",
+    name: "Crop PDF",
+    description: "Crop and resize PDF page dimensions",
+    icon: Crop,
+    href: "/tools/crop-pdf",
+    category: "Edit",
+    color: "from-fuchsia-500 to-pink-500",
+  },
+];
+
+export const categories = [...new Set(tools.map((t) => t.category))];
+
+export function getToolById(id: string): Tool | undefined {
+  return tools.find((t) => t.id === id);
+}
