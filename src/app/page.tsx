@@ -124,7 +124,7 @@ export default function Home() {
               Every PDF Tool You Need
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              18 powerful tools to handle any PDF task. All running locally in your browser.
+              20 powerful tools to handle any PDF task. All running locally in your browser.
             </p>
           </motion.div>
 
@@ -247,7 +247,7 @@ export default function Home() {
           >
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
               {[
-                { value: "18+", label: "PDF Tools" },
+                { value: "20+", label: "PDF Tools" },
                 { value: "0", label: "Data Collected" },
                 { value: "100%", label: "Browser Based" },
                 { value: "Free", label: "Forever" },

@@ -17,6 +17,8 @@ import {
   Lock,
   Unlock,
   Crop,
+  MessageSquareText,
+  Pencil,
   LucideIcon,
 } from "lucide-react";
 
@@ -192,6 +194,24 @@ export const tools: Tool[] = [
     href: "/tools/crop-pdf",
     category: "Edit",
     color: "from-fuchsia-500 to-pink-500",
+  },
+  {
+    id: "chat-with-pdf",
+    name: "Chat with PDF",
+    description: "Ask questions about your PDF and get instant answers",
+    icon: MessageSquareText,
+    href: "/tools/chat-with-pdf",
+    category: "AI",
+    color: "from-violet-500 to-indigo-600",
+  },
+  {
+    id: "edit-pdf",
+    name: "Edit PDF",
+    description: "Edit text, add content, whiteout and modify any PDF",
+    icon: Pencil,
+    href: "/tools/edit-pdf",
+    category: "Edit",
+    color: "from-sky-500 to-blue-600",
   },
 ];
 
