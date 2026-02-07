@@ -70,6 +70,29 @@ export default function Home() {
               <span className="gradient-text">Fast. Private. Browser-Based.</span>
             </motion.h1>
 
+            <motion.div
+              variants={fadeInUp}
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="mb-6"
+            >
+              <a
+                href="https://www.producthunt.com/posts/pdfkit-pro"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 transition-all duration-200 group"
+              >
+                <svg className="h-5 w-5 shrink-0" viewBox="0 0 40 40" fill="none">
+                  <circle cx="20" cy="20" r="20" fill="#DA552F"/>
+                  <path d="M22.667 20H17.333V14H22.667C24.324 14 25.667 15.343 25.667 17C25.667 18.657 24.324 20 22.667 20Z" fill="white"/>
+                  <path d="M14.667 26V14H22.667C24.324 14 25.667 15.343 25.667 17C25.667 18.657 24.324 20 22.667 20H17.333V26H14.667Z" fill="white"/>
+                </svg>
+                <span className="text-sm font-medium text-orange-400 group-hover:text-orange-300 transition-colors">
+                  Live on Product Hunt
+                </span>
+                <ArrowRight className="h-3.5 w-3.5 text-orange-400/60 group-hover:translate-x-0.5 transition-transform" />
+              </a>
+            </motion.div>
+
             <motion.p
               className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10"
               variants={fadeInUp}
@@ -262,6 +285,40 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* As Seen On Product Hunt */}
+      <section className="relative py-16">
+        <div className="container mx-auto px-4 md:px-6">
+          <motion.div
+            className="text-center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <p className="text-xs uppercase tracking-widest text-muted-foreground mb-6">
+              As seen on
+            </p>
+            <a
+              href="https://www.producthunt.com/posts/pdfkit-pro"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-4 px-8 py-4 rounded-2xl border border-border bg-card hover:border-orange-500/40 hover:shadow-lg hover:shadow-orange-500/5 transition-all duration-300 group"
+            >
+              <svg className="h-8 w-8 shrink-0" viewBox="0 0 40 40" fill="none">
+                <circle cx="20" cy="20" r="20" fill="#DA552F"/>
+                <path d="M22.667 20H17.333V14H22.667C24.324 14 25.667 15.343 25.667 17C25.667 18.657 24.324 20 22.667 20Z" fill="white"/>
+                <path d="M14.667 26V14H22.667C24.324 14 25.667 15.343 25.667 17C25.667 18.657 24.324 20 22.667 20H17.333V26H14.667Z" fill="white"/>
+              </svg>
+              <div className="text-left">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Featured on</p>
+                <p className="text-lg font-semibold group-hover:text-orange-400 transition-colors">Product Hunt</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-orange-400 group-hover:translate-x-0.5 transition-all ml-2" />
+            </a>
           </motion.div>
         </div>
       </section>

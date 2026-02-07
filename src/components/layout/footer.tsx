@@ -75,6 +75,28 @@ export function Footer() {
           </div>
         </div>
 
+        {/* Product Hunt Support */}
+        <div className="mt-8 pt-8 border-t border-border text-center">
+          <p className="text-sm font-medium text-muted-foreground mb-4">
+            Support us on Product Hunt 🚀
+          </p>
+          <a
+            href="https://www.producthunt.com/posts/pdfkit-pro"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-3 px-6 py-3 rounded-xl border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 transition-all duration-200 group"
+          >
+            <svg className="h-6 w-6 shrink-0" viewBox="0 0 40 40" fill="none">
+              <circle cx="20" cy="20" r="20" fill="#DA552F"/>
+              <path d="M22.667 20H17.333V14H22.667C24.324 14 25.667 15.343 25.667 17C25.667 18.657 24.324 20 22.667 20Z" fill="white"/>
+              <path d="M14.667 26V14H22.667C24.324 14 25.667 15.343 25.667 17C25.667 18.657 24.324 20 22.667 20H17.333V26H14.667Z" fill="white"/>
+            </svg>
+            <span className="text-sm font-semibold text-orange-400 group-hover:text-orange-300 transition-colors">
+              Upvote on Product Hunt
+            </span>
+          </a>
+        </div>
+
         <div className="mt-8 pt-8 border-t border-border">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-6 text-xs text-muted-foreground">
