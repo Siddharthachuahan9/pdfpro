@@ -15,11 +15,11 @@ import { Analytics } from "@vercel/analytics/next";
 export const metadata: Metadata = {
   metadataBase: new URL("https://pdfkit.pro"),
   title: {
-    default: "PDFKit Pro - Free PDF Editor, Chat with PDF, Merge, Split, Compress",
+    default: "PDFKit Pro - Free PDF Editor, Merge, Split, Compress and Chat with PDF",
     template: "%s | pdfkit.pro",
   },
   description:
-    "Free online PDF editor. Edit, merge, split, compress and chat with PDFs. No signup. Privacy first.",
+    "Free online PDF editor. Merge, split, compress, edit and chat with PDF online. No signup. Privacy first.",
   verification: {
     google: "s8v6tSwpFyV4jO6y-LDeVOVgXSRGEawakx9wtD81G0A",
   },
@@ -43,9 +43,9 @@ export const metadata: Metadata = {
   creator: "Sidheart",
   publisher: "pdfkit.pro",
   openGraph: {
-    title: "PDFKit Pro - Free PDF Editor, Chat with PDF, Merge, Split, Compress",
+    title: "PDFKit Pro - Free PDF Editor, Merge, Split, Compress and Chat with PDF",
     description:
-      "Free online PDF editor. Edit, merge, split, compress and chat with PDFs. No signup. Privacy first.",
+      "Free online PDF editor. Merge, split, compress, edit and chat with PDF online. No signup. Privacy first.",
     url: "https://pdfkit.pro",
     siteName: "pdfkit.pro",
     type: "website",
@@ -53,9 +53,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "PDFKit Pro - Free PDF Editor, Chat with PDF, Merge, Split, Compress",
+    title: "PDFKit Pro - Free PDF Editor, Merge, Split, Compress and Chat with PDF",
     description:
-      "Free online PDF editor. Edit, merge, split, compress and chat with PDFs. No signup. Privacy first.",
+      "Free online PDF editor. Merge, split, compress, edit and chat with PDF online. No signup. Privacy first.",
   },
   robots: {
     index: true,
