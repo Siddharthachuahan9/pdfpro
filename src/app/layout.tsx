@@ -15,11 +15,14 @@ import { Analytics } from "@vercel/analytics/next";
 export const metadata: Metadata = {
   metadataBase: new URL("https://pdfkit.pro"),
   title: {
-    default: "pdfkit.pro - Free Online PDF Tools | Edit, Merge, Compress PDF",
+    default: "PDFKit Pro - Free PDF Editor, Chat with PDF, Merge, Split, Compress",
     template: "%s | pdfkit.pro",
   },
   description:
-    "Free browser-based PDF tools. Merge, split, compress, convert, edit, sign, and chat with PDFs. No uploads, no signup. 100% private — everything runs locally in your browser.",
+    "Free online PDF editor. Edit, merge, split, compress and chat with PDFs. No signup. Privacy first.",
+  verification: {
+    google: "s8v6tSwpFyV4jO6y-LDeVOVgXSRGEawakx9wtD81G0A",
+  },
   keywords: [
     "PDF tools",
     "merge PDF",
@@ -40,9 +43,9 @@ export const metadata: Metadata = {
   creator: "Sidheart",
   publisher: "pdfkit.pro",
   openGraph: {
-    title: "pdfkit.pro - Free Online PDF Tools",
+    title: "PDFKit Pro - Free PDF Editor, Chat with PDF, Merge, Split, Compress",
     description:
-      "20+ free browser-based PDF tools. Edit, merge, compress, convert PDFs and more. Fast, private, no signup.",
+      "Free online PDF editor. Edit, merge, split, compress and chat with PDFs. No signup. Privacy first.",
     url: "https://pdfkit.pro",
     siteName: "pdfkit.pro",
     type: "website",
@@ -50,9 +53,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "pdfkit.pro - Free Online PDF Tools",
+    title: "PDFKit Pro - Free PDF Editor, Chat with PDF, Merge, Split, Compress",
     description:
-      "20+ free browser-based PDF tools. Edit, merge, compress, convert PDFs. Fast, private, no signup.",
+      "Free online PDF editor. Edit, merge, split, compress and chat with PDFs. No signup. Privacy first.",
   },
   robots: {
     index: true,
