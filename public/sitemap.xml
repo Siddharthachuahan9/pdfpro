@@ -1,7 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://pdfkit.pro/</loc>
-    <priority>1.0</priority>
-  </url>
+
+<url>
+<loc>https://pdfkit.pro/</loc>
+<priority>1.0</priority>
+</url>
+
+<url>
+<loc>https://pdfkit.pro/tools</loc>
+</url>
+
+<url>
+<loc>https://pdfkit.pro/tools/merge</loc>
+</url>
+
+<url>
+<loc>https://pdfkit.pro/tools/split</loc>
+</url>
+
+<url>
+<loc>https://pdfkit.pro/tools/compress</loc>
+</url>
+
+<url>
+<loc>https://pdfkit.pro/tools/chat-with-pdf</loc>
+</url>
+
+<url>
+<loc>https://pdfkit.pro/tools/edit-pdf</loc>
+</url>
+
 </urlset>
