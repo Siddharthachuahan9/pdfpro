@@ -335,11 +335,16 @@ export default function EditPDFPage() {
   const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
   /* Store the natural size of the rendered page image for coordinate mapping */
   const [pageSize, setPageSize] = useState<{ w: number; h: number } | null>(null);
-  /* Extracted text items per page for click-to-edit existing text */
+  /* Extracted text items per page for the interactive text layer */
   const [pdfTextItems, setPdfTextItems] = useState<Map<number, PdfTextItem[]>>(new Map());
+  /* Track which original text items have been activated (replaced by editable elements).
+     Key format: "pageIdx-itemIdx" */
+  const [activatedTextItems, setActivatedTextItems] = useState<Set<string>>(new Set());
+  /* Which original PDF text item is currently being edited inline */
+  const [editingPdfText, setEditingPdfText] = useState<string | null>(null);
 
-  /* ── Tool state ── */
-  const [activeTool, setActiveTool] = useState<EditTool>("text");
+  /* ── Tool state — default to select so users can click existing text to edit ── */
+  const [activeTool, setActiveTool] = useState<EditTool>("select");
 
   /* ── Element management ── */
   const [elements, setElements] = useState<EditElement[]>([]);
@@ -1299,12 +1304,67 @@ export default function EditPDFPage() {
   const currentPageElements = elements.filter((el) => el.page === currentPage);
 
   /* ═══════════════════════════════════════════════
+     ACTIVATE PDF TEXT ITEM — convert an original
+     PDF text item into an editable whiteout + textbox
+     so the user can edit it inline like Sejda
+     ═══════════════════════════════════════════════ */
+
+  const activatePdfTextItem = useCallback(
+    (pageIdx: number, itemIdx: number, item: PdfTextItem) => {
+      const key = `${pageIdx}-${itemIdx}`;
+      if (activatedTextItems.has(key)) return; // already activated
+
+      if (editingText) commitTextBox(editingText);
+      pushUndo();
+
+      const padding = 2;
+      const ts = Date.now();
+
+      /* Whiteout to cover original text */
+      const whiteout: WhiteoutElement = {
+        type: "whiteout",
+        id: `wo-inline-${ts}`,
+        x: item.x - padding,
+        y: item.y - padding,
+        width: item.width + padding * 2,
+        height: item.height + padding * 2,
+        color: "#ffffff",
+        page: pageIdx,
+      };
+
+      /* Editable text box pre-filled with the original text */
+      const textBox: TextElement = {
+        type: "text",
+        id: `text-inline-${ts}`,
+        x: item.x,
+        y: item.y,
+        width: item.width + padding * 4,
+        height: item.height,
+        text: item.text,
+        fontSize: item.fontSize,
+        fontFamily: item.fontFamily,
+        color: "#000000",
+        bold: false,
+        italic: false,
+        underline: false,
+        page: pageIdx,
+      };
+
+      setElements((prev) => [...prev, whiteout, textBox]);
+      setActivatedTextItems((prev) => new Set(prev).add(key));
+      setSelectedElement(textBox.id);
+      setEditingText(textBox.id);
+      setEditingPdfText(key);
+    },
+    [activatedTextItems, editingText, commitTextBox, pushUndo]
+  );
+
+  /* ═══════════════════════════════════════════════
      TOOL DEFINITIONS
      ═══════════════════════════════════════════════ */
 
   const tools: { id: EditTool; icon: typeof Pencil; label: string; action?: () => void }[] = [
     { id: "select", icon: MousePointer, label: "Select" },
-    { id: "edittext", icon: TextCursorInput, label: "Edit Text" },
     { id: "text", icon: Type, label: "Add Text" },
     { id: "whiteout", icon: Square, label: "Whiteout" },
     { id: "highlight", icon: Highlighter, label: "Highlight" },
@@ -1594,6 +1654,39 @@ export default function EditPDFPage() {
                   draggable={false}
                 />
               )}
+
+              {/* ── INTERACTIVE TEXT LAYER ──
+                  Renders all original PDF text as transparent clickable
+                  overlays. Click any text to activate it for editing.
+                  This is the Sejda-like experience. */}
+              {(pdfTextItems.get(currentPage) || []).map((item, idx) => {
+                const key = `${currentPage}-${idx}`;
+                // Don't render if this text item has been activated (replaced by editable element)
+                if (activatedTextItems.has(key)) return null;
+                return (
+                  <div
+                    key={`pdf-text-${key}`}
+                    className={cn(
+                      "absolute cursor-text",
+                      "hover:bg-blue-100/30 hover:outline hover:outline-1 hover:outline-blue-400/50",
+                      "transition-colors duration-100",
+                      editingPdfText === key && "bg-blue-100/40 outline outline-1 outline-blue-400"
+                    )}
+                    style={{
+                      left: item.x,
+                      top: item.y,
+                      width: item.width,
+                      height: item.height,
+                      zIndex: 5,
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      activatePdfTextItem(currentPage, idx, item);
+                    }}
+                    title={`Click to edit: "${item.text}"`}
+                  />
+                );
+              })}
 
               {/* ── RENDER ALL ELEMENTS ── */}
               {currentPageElements.map((el) => {
@@ -1914,8 +2007,8 @@ export default function EditPDFPage() {
 
           {/* ── Helper text ── */}
           <p className="text-xs text-center text-muted-foreground">
-            {activeTool === "select" && "Click to select. Double-click text to edit. Drag to move. Drag corners to resize."}
-            {activeTool === "edittext" && "Click on any existing text in the PDF to edit it. The original text will be replaced."}
+            {activeTool === "select" && "Click on any existing text to edit it. Double-click placed text to re-edit. Drag to move. Drag corners to resize."}
+            {activeTool === "edittext" && "Click on any existing text in the PDF to edit it."}
             {activeTool === "text" && "Click anywhere to place a new text box. Start typing immediately."}
             {activeTool === "whiteout" && "Click and drag to draw a white rectangle over content."}
             {activeTool === "highlight" && "Click and drag over text to highlight, underline, or strike through."}
