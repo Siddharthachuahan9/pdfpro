@@ -13,36 +13,44 @@ import {
   ChevronRight,
   ZoomIn,
   ZoomOut,
-  Palette,
   Trash2,
-  Move,
   MousePointer,
   Bold,
   Italic,
+  Underline,
+  PenTool,
+  Highlighter,
+  Strikethrough,
+  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
 import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
 import { downloadPDF } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
 import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
-type EditTool = "select" | "text" | "whiteout" | "image" | "draw";
+/* ─────────────────────────────────────────────
+   Type definitions for all editor elements
+   ───────────────────────────────────────────── */
+
+type EditTool = "select" | "text" | "whiteout" | "image" | "draw" | "sign" | "highlight";
 
 interface TextElement {
   type: "text";
   id: string;
   x: number;
   y: number;
+  width: number;
+  height: number;
   text: string;
   fontSize: number;
   fontFamily: string;
   color: string;
   bold: boolean;
   italic: boolean;
+  underline: boolean;
   page: number;
 }
 
@@ -79,47 +87,86 @@ interface DrawElement {
 
 type EditElement = TextElement | WhiteoutElement | ImageElement | DrawElement;
 
+/* ─────────────────────────────────────────────
+   Available font families for the text toolbar
+   ───────────────────────────────────────────── */
+const FONT_FAMILIES = [
+  "Arial",
+  "Helvetica",
+  "Times New Roman",
+  "Courier New",
+  "Georgia",
+  "Verdana",
+];
+
+/* ─────────────────────────────────────────────
+   Font size presets for quick selection
+   ───────────────────────────────────────────── */
+const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 72];
+
+/* ─────────────────────────────────────────────
+   Minimum resize dimensions
+   ───────────────────────────────────────────── */
+const MIN_WIDTH = 40;
+const MIN_HEIGHT = 20;
+
 export default function EditPDFPage() {
+  /* ── File and PDF state ── */
   const [files, setFiles] = useState<File[]>([]);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [pageImages, setPageImages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [zoom, setZoom] = useState(1);
-  const [activeTool, setActiveTool] = useState<EditTool>("select");
+  const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
+
+  /* ── Tool state ── */
+  const [activeTool, setActiveTool] = useState<EditTool>("text");
+
+  /* ── Element management ── */
   const [elements, setElements] = useState<EditElement[]>([]);
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<EditElement[][]>([]);
   const [redoStack, setRedoStack] = useState<EditElement[][]>([]);
 
-  // Text tool state
-  const [textColor, setTextColor] = useState("#000000");
-  const [textFontSize, setTextFontSize] = useState(16);
-  const [textBold, setTextBold] = useState(false);
-  const [textItalic, setTextItalic] = useState(false);
+  /* ── Default text formatting (applied to new text boxes) ── */
+  const [defaultFontFamily, setDefaultFontFamily] = useState("Arial");
+  const [defaultFontSize, setDefaultFontSize] = useState(16);
+  const [defaultTextColor, setDefaultTextColor] = useState("#000000");
+  const [defaultBold, setDefaultBold] = useState(false);
+  const [defaultItalic, setDefaultItalic] = useState(false);
+  const [defaultUnderline, setDefaultUnderline] = useState(false);
 
-  // Whiteout color
+  /* ── Whiteout / Draw state ── */
   const [whiteoutColor, setWhiteoutColor] = useState("#ffffff");
-
-  // Draw state
   const [drawColor, setDrawColor] = useState("#000000");
   const [drawWidth, setDrawWidth] = useState(2);
 
-  // Interaction state
+  /* ── Interaction state ── */
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [currentDraw, setCurrentDraw] = useState<{ x: number; y: number }[] | null>(null);
-  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+  const [dragState, setDragState] = useState<{
+    elementId: string;
+    offsetX: number;
+    offsetY: number;
+    type: "move" | "resize";
+    handle?: string; // "nw" | "ne" | "sw" | "se"
+    startWidth?: number;
+    startHeight?: number;
+    startX?: number;
+    startY?: number;
+  } | null>(null);
 
-  // Editing text
-  const [editingText, setEditingText] = useState<string | null>(null);
-
+  /* ── Refs ── */
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const textInputRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // Original PDF data for export
-  const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
-
+  /* ─────────────────────────────────────────────
+     Undo / Redo helpers
+     ───────────────────────────────────────────── */
   const pushUndo = useCallback(() => {
     setUndoStack((prev) => [...prev.slice(-30), [...elements]]);
     setRedoStack([]);
@@ -132,6 +179,7 @@ export default function EditPDFPage() {
     setElements(prev);
     setUndoStack((u) => u.slice(0, -1));
     setSelectedElement(null);
+    setEditingText(null);
   }, [undoStack, elements]);
 
   const redo = useCallback(() => {
@@ -141,15 +189,19 @@ export default function EditPDFPage() {
     setElements(next);
     setRedoStack((r) => r.slice(0, -1));
     setSelectedElement(null);
+    setEditingText(null);
   }, [redoStack, elements]);
 
-  // Load PDF and render pages
+  /* ─────────────────────────────────────────────
+     Load PDF and render all pages as images
+     ───────────────────────────────────────────── */
   const handleFilesSelected = useCallback(async (newFiles: File[]) => {
     setFiles(newFiles);
     setElements([]);
     setUndoStack([]);
     setRedoStack([]);
     setSelectedElement(null);
+    setEditingText(null);
     setCurrentPage(0);
     setPageImages([]);
 
@@ -183,7 +235,7 @@ export default function EditPDFPage() {
             canvasContext: ctx,
             viewport,
             canvas,
-          } as any) ).promise;
+          } as any)).promise;
 
           images.push(canvas.toDataURL("image/png"));
           setProgress(20 + Math.round((i / pdf.numPages) * 70));
@@ -200,7 +252,11 @@ export default function EditPDFPage() {
     }
   }, []);
 
-  const getRelativePos = (e: React.MouseEvent<HTMLDivElement>) => {
+  /* ─────────────────────────────────────────────
+     Coordinate helpers — convert mouse pos to
+     coordinates relative to the PDF canvas
+     ───────────────────────────────────────────── */
+  const getRelativePos = (e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
     const rect = canvasContainerRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
     return {
@@ -209,14 +265,136 @@ export default function EditPDFPage() {
     };
   };
 
+  /* ─────────────────────────────────────────────
+     Hit-test: is a point inside an element?
+     ───────────────────────────────────────────── */
+  const isPointInElement = (pos: { x: number; y: number }, el: EditElement): boolean => {
+    if (el.type === "text") {
+      return (
+        pos.x >= el.x &&
+        pos.x <= el.x + el.width &&
+        pos.y >= el.y &&
+        pos.y <= el.y + el.height
+      );
+    }
+    if (el.type === "whiteout" || el.type === "image") {
+      return (
+        pos.x >= el.x &&
+        pos.x <= el.x + el.width &&
+        pos.y >= el.y &&
+        pos.y <= el.y + el.height
+      );
+    }
+    if (el.type === "draw") {
+      for (const pt of el.points) {
+        const dist = Math.sqrt((pos.x - pt.x) ** 2 + (pos.y - pt.y) ** 2);
+        if (dist < 10) return true;
+      }
+    }
+    return false;
+  };
+
+  /* ─────────────────────────────────────────────
+     Check if a point is on one of the resize
+     handles (corners) of a selected element
+     ───────────────────────────────────────────── */
+  const getResizeHandle = (
+    pos: { x: number; y: number },
+    el: EditElement
+  ): string | null => {
+    if (el.type === "draw") return null;
+    const handleSize = 8;
+    const ex = el.x;
+    const ey = el.y;
+    const ew = el.type === "text" ? el.width : el.width;
+    const eh = el.type === "text" ? el.height : el.height;
+
+    const handles: { name: string; cx: number; cy: number }[] = [
+      { name: "nw", cx: ex, cy: ey },
+      { name: "ne", cx: ex + ew, cy: ey },
+      { name: "sw", cx: ex, cy: ey + eh },
+      { name: "se", cx: ex + ew, cy: ey + eh },
+    ];
+
+    for (const h of handles) {
+      if (
+        Math.abs(pos.x - h.cx) <= handleSize &&
+        Math.abs(pos.y - h.cy) <= handleSize
+      ) {
+        return h.name;
+      }
+    }
+    return null;
+  };
+
+  /* ─────────────────────────────────────────────
+     Commit a text box: read inner HTML, strip
+     empty boxes, sync the text back to state
+     ───────────────────────────────────────────── */
+  const commitTextBox = useCallback(
+    (elementId: string) => {
+      const div = textInputRefs.current.get(elementId);
+      if (!div) return;
+
+      const text = div.innerText || "";
+
+      setElements((prev) =>
+        prev
+          .map((el) => {
+            if (el.id !== elementId || el.type !== "text") return el;
+            return { ...el, text };
+          })
+          // Remove empty text boxes
+          .filter((el) => {
+            if (el.type === "text" && el.id === elementId && text.trim() === "") {
+              return false;
+            }
+            return true;
+          })
+      );
+
+      setEditingText(null);
+    },
+    []
+  );
+
+  /* ─────────────────────────────────────────────
+     Mouse handlers for the canvas area
+     ───────────────────────────────────────────── */
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Don't process events on the text editing divs — they handle themselves
+    const target = e.target as HTMLElement;
+    if (target.closest("[data-text-editor]")) return;
+
     const pos = getRelativePos(e);
 
+    /* ── SELECT tool ── */
     if (activeTool === "select") {
-      // Check if clicking on an existing element
       const pageElements = elements.filter((el) => el.page === currentPage);
-      let found = false;
 
+      // First check if clicking on a resize handle of the selected element
+      if (selectedElement) {
+        const selEl = pageElements.find((el) => el.id === selectedElement);
+        if (selEl) {
+          const handle = getResizeHandle(pos, selEl);
+          if (handle) {
+            setDragState({
+              elementId: selEl.id,
+              offsetX: pos.x,
+              offsetY: pos.y,
+              type: "resize",
+              handle,
+              startWidth: selEl.type === "draw" ? 0 : selEl.width,
+              startHeight: selEl.type === "draw" ? 0 : selEl.height,
+              startX: selEl.type === "draw" ? 0 : selEl.x,
+              startY: selEl.type === "draw" ? 0 : selEl.y,
+            });
+            return;
+          }
+        }
+      }
+
+      // Check if clicking on an element to select/move it
       for (let i = pageElements.length - 1; i >= 0; i--) {
         const el = pageElements[i];
         if (isPointInElement(pos, el)) {
@@ -224,51 +402,78 @@ export default function EditPDFPage() {
           if (el.type === "draw") {
             const minX = Math.min(...el.points.map((p) => p.x));
             const minY = Math.min(...el.points.map((p) => p.y));
-            setDragOffset({ x: pos.x - minX, y: pos.y - minY });
+            setDragState({
+              elementId: el.id,
+              offsetX: pos.x - minX,
+              offsetY: pos.y - minY,
+              type: "move",
+            });
           } else {
-            setDragOffset({ x: pos.x - el.x, y: pos.y - el.y });
+            setDragState({
+              elementId: el.id,
+              offsetX: pos.x - el.x,
+              offsetY: pos.y - el.y,
+              type: "move",
+            });
           }
-          found = true;
-          break;
+          // If clicking a text element, don't start editing immediately — require double-click
+          if (editingText && editingText !== el.id) {
+            commitTextBox(editingText);
+          }
+          return;
         }
       }
 
-      if (!found) {
-        setSelectedElement(null);
-        setEditingText(null);
+      // Clicking on empty space — deselect all
+      if (editingText) {
+        commitTextBox(editingText);
       }
+      setSelectedElement(null);
+      setEditingText(null);
       return;
     }
 
+    /* ── TEXT tool: click to place a new text box ── */
     if (activeTool === "text") {
+      // First commit any existing editing text
+      if (editingText) {
+        commitTextBox(editingText);
+      }
+
       pushUndo();
       const newEl: TextElement = {
         type: "text",
         id: `text-${Date.now()}`,
         x: pos.x,
         y: pos.y,
-        text: "Edit text",
-        fontSize: textFontSize,
-        fontFamily: "Arial",
-        color: textColor,
-        bold: textBold,
-        italic: textItalic,
+        width: 200,
+        height: defaultFontSize * 1.5,
+        text: "",
+        fontSize: defaultFontSize,
+        fontFamily: defaultFontFamily,
+        color: defaultTextColor,
+        bold: defaultBold,
+        italic: defaultItalic,
+        underline: defaultUnderline,
         page: currentPage,
       };
       setElements((prev) => [...prev, newEl]);
       setSelectedElement(newEl.id);
       setEditingText(newEl.id);
-      setActiveTool("select");
       return;
     }
 
+    /* ── WHITEOUT tool: click-drag to draw rectangle ── */
     if (activeTool === "whiteout") {
+      if (editingText) commitTextBox(editingText);
       setIsDrawing(true);
       setDrawStart(pos);
       return;
     }
 
+    /* ── DRAW tool: freehand drawing ── */
     if (activeTool === "draw") {
+      if (editingText) commitTextBox(editingText);
       setIsDrawing(true);
       setCurrentDraw([pos]);
       return;
@@ -278,29 +483,86 @@ export default function EditPDFPage() {
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const pos = getRelativePos(e);
 
-    if (activeTool === "select" && selectedElement && dragOffset && !editingText) {
-      setElements((prev) =>
-        prev.map((el) => {
-          if (el.id !== selectedElement) return el;
-          if (el.type === "draw") {
-            const minX = Math.min(...el.points.map((p) => p.x));
-            const minY = Math.min(...el.points.map((p) => p.y));
-            const dx = pos.x - dragOffset.x - minX;
-            const dy = pos.y - dragOffset.y - minY;
-            return { ...el, points: el.points.map((p) => ({ x: p.x + dx, y: p.y + dy })) };
-          }
-          return { ...el, x: pos.x - dragOffset.x, y: pos.y - dragOffset.y };
-        })
-      );
-      return;
+    /* ── Drag (move) or resize an element ── */
+    if (dragState) {
+      if (dragState.type === "move") {
+        setElements((prev) =>
+          prev.map((el) => {
+            if (el.id !== dragState.elementId) return el;
+            if (el.type === "draw") {
+              const minX = Math.min(...el.points.map((p) => p.x));
+              const minY = Math.min(...el.points.map((p) => p.y));
+              const dx = pos.x - dragState.offsetX - minX;
+              const dy = pos.y - dragState.offsetY - minY;
+              return {
+                ...el,
+                points: el.points.map((p) => ({ x: p.x + dx, y: p.y + dy })),
+              };
+            }
+            return {
+              ...el,
+              x: pos.x - dragState.offsetX,
+              y: pos.y - dragState.offsetY,
+            };
+          })
+        );
+        return;
+      }
+
+      if (dragState.type === "resize" && dragState.handle) {
+        const dx = pos.x - dragState.offsetX;
+        const dy = pos.y - dragState.offsetY;
+        const sw = dragState.startWidth || 0;
+        const sh = dragState.startHeight || 0;
+        const sx = dragState.startX || 0;
+        const sy = dragState.startY || 0;
+
+        setElements((prev) =>
+          prev.map((el) => {
+            if (el.id !== dragState.elementId || el.type === "draw") return el;
+
+            let newX = el.x;
+            let newY = el.y;
+            let newW = el.type === "text" ? el.width : el.width;
+            let newH = el.type === "text" ? el.height : el.height;
+
+            switch (dragState.handle) {
+              case "se":
+                newW = Math.max(MIN_WIDTH, sw + dx);
+                newH = Math.max(MIN_HEIGHT, sh + dy);
+                break;
+              case "sw":
+                newW = Math.max(MIN_WIDTH, sw - dx);
+                newH = Math.max(MIN_HEIGHT, sh + dy);
+                newX = sx + (sw - newW);
+                break;
+              case "ne":
+                newW = Math.max(MIN_WIDTH, sw + dx);
+                newH = Math.max(MIN_HEIGHT, sh - dy);
+                newY = sy + (sh - newH);
+                break;
+              case "nw":
+                newW = Math.max(MIN_WIDTH, sw - dx);
+                newH = Math.max(MIN_HEIGHT, sh - dy);
+                newX = sx + (sw - newW);
+                newY = sy + (sh - newH);
+                break;
+            }
+
+            return { ...el, x: newX, y: newY, width: newW, height: newH };
+          })
+        );
+        return;
+      }
     }
 
+    /* ── Whiteout preview ── */
     if (activeTool === "whiteout" && isDrawing && drawStart) {
-      // Show preview via temp state - handled in render
       setCurrentDraw([drawStart, pos]);
       return;
     }
 
+    /* ── Freehand draw ── */
     if (activeTool === "draw" && isDrawing && currentDraw) {
       setCurrentDraw((prev) => [...(prev || []), pos]);
       return;
@@ -310,20 +572,22 @@ export default function EditPDFPage() {
   const handleCanvasMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
     const pos = getRelativePos(e);
 
-    if (activeTool === "select" && dragOffset) {
+    /* ── End drag/resize ── */
+    if (dragState) {
       pushUndo();
-      setDragOffset(null);
+      setDragState(null);
       return;
     }
 
+    /* ── End whiteout draw ── */
     if (activeTool === "whiteout" && isDrawing && drawStart) {
-      pushUndo();
       const x = Math.min(drawStart.x, pos.x);
       const y = Math.min(drawStart.y, pos.y);
       const w = Math.abs(pos.x - drawStart.x);
       const h = Math.abs(pos.y - drawStart.y);
 
       if (w > 5 && h > 5) {
+        pushUndo();
         const newEl: WhiteoutElement = {
           type: "whiteout",
           id: `whiteout-${Date.now()}`,
@@ -342,6 +606,7 @@ export default function EditPDFPage() {
       return;
     }
 
+    /* ── End freehand draw ── */
     if (activeTool === "draw" && isDrawing && currentDraw && currentDraw.length > 1) {
       pushUndo();
       const newEl: DrawElement = {
@@ -361,32 +626,34 @@ export default function EditPDFPage() {
     setIsDrawing(false);
     setDrawStart(null);
     setCurrentDraw(null);
-    setDragOffset(null);
+    setDragState(null);
   };
 
-  const isPointInElement = (pos: { x: number; y: number }, el: EditElement): boolean => {
-    if (el.type === "text") {
-      const w = el.text.length * el.fontSize * 0.6;
-      const h = el.fontSize * 1.4;
-      return pos.x >= el.x && pos.x <= el.x + w && pos.y >= el.y - h && pos.y <= el.y;
-    }
-    if (el.type === "whiteout" || el.type === "image") {
-      return (
-        pos.x >= el.x &&
-        pos.x <= el.x + el.width &&
-        pos.y >= el.y &&
-        pos.y <= el.y + el.height
-      );
-    }
-    if (el.type === "draw") {
-      for (const pt of el.points) {
-        const dist = Math.sqrt((pos.x - pt.x) ** 2 + (pos.y - pt.y) ** 2);
-        if (dist < 10) return true;
+  /* ─────────────────────────────────────────────
+     Double-click handler for editing existing
+     text boxes in select mode
+     ───────────────────────────────────────────── */
+  const handleCanvasDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (activeTool !== "select") return;
+    const target = e.target as HTMLElement;
+    if (target.closest("[data-text-editor]")) return;
+
+    const pos = getRelativePos(e);
+    const pageElements = elements.filter((el) => el.page === currentPage);
+
+    for (let i = pageElements.length - 1; i >= 0; i--) {
+      const el = pageElements[i];
+      if (el.type === "text" && isPointInElement(pos, el)) {
+        setSelectedElement(el.id);
+        setEditingText(el.id);
+        return;
       }
     }
-    return false;
   };
 
+  /* ─────────────────────────────────────────────
+     Delete the currently selected element
+     ───────────────────────────────────────────── */
   const deleteSelected = () => {
     if (!selectedElement) return;
     pushUndo();
@@ -395,6 +662,9 @@ export default function EditPDFPage() {
     setEditingText(null);
   };
 
+  /* ─────────────────────────────────────────────
+     Handle image upload
+     ───────────────────────────────────────────── */
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -429,7 +699,102 @@ export default function EditPDFPage() {
     e.target.value = "";
   };
 
-  // Export edited PDF
+  /* ─────────────────────────────────────────────
+     Update a formatting property on the selected
+     text element (or update the defaults)
+     ───────────────────────────────────────────── */
+  const updateTextProperty = (
+    property: keyof TextElement,
+    value: string | number | boolean
+  ) => {
+    if (selectedElement) {
+      setElements((prev) =>
+        prev.map((el) =>
+          el.id === selectedElement && el.type === "text"
+            ? { ...el, [property]: value }
+            : el
+        )
+      );
+    }
+  };
+
+  /* ─────────────────────────────────────────────
+     Get the currently selected text element
+     ───────────────────────────────────────────── */
+  const getSelectedTextEl = (): TextElement | null => {
+    if (!selectedElement) return null;
+    const el = elements.find((e) => e.id === selectedElement);
+    if (el && el.type === "text") return el;
+    return null;
+  };
+
+  /* ─────────────────────────────────────────────
+     Auto-focus the contenteditable div when
+     editingText changes
+     ───────────────────────────────────────────── */
+  useEffect(() => {
+    if (editingText) {
+      // Small timeout to let the DOM render first
+      const timeout = setTimeout(() => {
+        const div = textInputRefs.current.get(editingText);
+        if (div) {
+          div.focus();
+          // Place cursor at end of text
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(div);
+          range.collapse(false);
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        }
+      }, 10);
+      return () => clearTimeout(timeout);
+    }
+  }, [editingText]);
+
+  /* ─────────────────────────────────────────────
+     Keyboard shortcut: Delete/Backspace removes
+     selected element (when not editing text)
+     ───────────────────────────────────────────── */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept keyboard when editing text
+      if (editingText) return;
+
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedElement) {
+        e.preventDefault();
+        deleteSelected();
+        return;
+      }
+
+      if (e.key === "Escape") {
+        setSelectedElement(null);
+        setEditingText(null);
+        return;
+      }
+
+      // Ctrl+Z / Cmd+Z for undo
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      // Ctrl+Shift+Z / Ctrl+Y for redo
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editingText, selectedElement, undo, redo, deleteSelected]);
+
+  /* ─────────────────────────────────────────────
+     Export: burn all overlays into PDF with pdf-lib
+     ───────────────────────────────────────────── */
   const handleExport = async () => {
     if (!pdfBytes) return;
     setProcessing(true);
@@ -446,7 +811,7 @@ export default function EditPDFPage() {
 
       setProgress(30);
 
-      // We rendered at scale=2, so divide coordinates by 2 to match PDF space
+      // PDF.js rendered at scale=2, so divide coordinates by 2 for PDF space
       const scale = 2;
 
       for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
@@ -469,7 +834,7 @@ export default function EditPDFPage() {
             });
           }
 
-          if (el.type === "text") {
+          if (el.type === "text" && el.text.trim()) {
             const hex = el.color;
             const r = parseInt(hex.slice(1, 3), 16) / 255;
             const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -480,12 +845,20 @@ export default function EditPDFPage() {
             else if (el.bold) selectedFont = fontBold;
             else if (el.italic) selectedFont = fontItalic;
 
-            page.drawText(el.text, {
-              x: el.x / scale,
-              y: height - el.y / scale,
-              size: el.fontSize / scale,
-              font: selectedFont,
-              color: rgb(r, g, b),
+            // Split text into lines and draw each line
+            const lines = el.text.split("\n");
+            const lineHeight = (el.fontSize / scale) * 1.3;
+
+            lines.forEach((line, lineIdx) => {
+              if (line.trim()) {
+                page.drawText(line, {
+                  x: el.x / scale,
+                  y: height - (el.y / scale) - (el.fontSize / scale) - (lineIdx * lineHeight),
+                  size: el.fontSize / scale,
+                  font: selectedFont,
+                  color: rgb(r, g, b),
+                });
+              }
             });
           }
 
@@ -543,8 +916,15 @@ export default function EditPDFPage() {
     }
   };
 
+  /* ─────────────────────────────────────────────
+     Filter elements for the current page only
+     ───────────────────────────────────────────── */
   const currentPageElements = elements.filter((el) => el.page === currentPage);
+  const selectedTextEl = getSelectedTextEl();
 
+  /* ─────────────────────────────────────────────
+     Tool definitions for the main toolbar
+     ───────────────────────────────────────────── */
   const tools: { id: EditTool; icon: typeof Pencil; label: string }[] = [
     { id: "select", icon: MousePointer, label: "Select" },
     { id: "text", icon: Type, label: "Add Text" },
@@ -553,32 +933,67 @@ export default function EditPDFPage() {
     { id: "image", icon: ImagePlus, label: "Image" },
   ];
 
+  /* ─────────────────────────────────────────────
+     Render resize handles for the selected element
+     ───────────────────────────────────────────── */
+  const renderResizeHandles = (el: EditElement) => {
+    if (el.type === "draw") return null;
+    const w = el.width;
+    const h = el.height;
+
+    const handleStyle =
+      "absolute w-3 h-3 bg-white border-2 border-primary rounded-sm z-20";
+    return (
+      <>
+        <div className={handleStyle} style={{ left: -6, top: -6, cursor: "nw-resize" }} data-handle="nw" />
+        <div className={handleStyle} style={{ right: -6, top: -6, cursor: "ne-resize" }} data-handle="ne" />
+        <div className={handleStyle} style={{ left: -6, bottom: -6, cursor: "sw-resize" }} data-handle="sw" />
+        <div className={handleStyle} style={{ right: -6, bottom: -6, cursor: "se-resize" }} data-handle="se" />
+      </>
+    );
+  };
+
+  /* ═══════════════════════════════════════════════
+     RENDER
+     ═══════════════════════════════════════════════ */
   return (
     <ToolLayout
       title="Edit PDF"
-      description="Edit text, add content, whiteout and modify any PDF"
+      description="Edit text, add content, whiteout and modify any PDF — Sejda-like experience"
       icon={Pencil}
       color="from-sky-500 to-blue-600"
       processing={processing}
       progress={progress}
     >
       {pageImages.length === 0 ? (
-        <FileUpload
-          accept=".pdf"
-          onFilesSelected={handleFilesSelected}
-          files={files}
-          onRemoveFile={() => {
-            setFiles([]);
-            setPageImages([]);
-            setPdfBytes(null);
-          }}
-          label="Upload PDF to edit"
-          description="Drop a PDF file here to start editing"
-        />
+        /* ── Upload screen ── */
+        <div className="space-y-6">
+          <FileUpload
+            accept=".pdf"
+            onFilesSelected={handleFilesSelected}
+            files={files}
+            onRemoveFile={() => {
+              setFiles([]);
+              setPageImages([]);
+              setPdfBytes(null);
+            }}
+            label="Upload PDF to edit"
+            description="Drop a PDF file here to start editing"
+          />
+          {files.length > 0 && !processing && pageImages.length === 0 && (
+            <div className="flex justify-center">
+              <Button onClick={() => handleFilesSelected(files)} className="gradient-primary">
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit PDF
+              </Button>
+            </div>
+          )}
+        </div>
       ) : (
+        /* ── Editor interface ── */
         <div className="space-y-3">
-          {/* Toolbar */}
-          <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl border border-border bg-card">
+          {/* ── Main toolbar ── */}
+          <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl border border-border bg-card shadow-sm">
             {/* Tool buttons */}
             <div className="flex items-center gap-1 border-r border-border pr-2">
               {tools.map((tool) => (
@@ -586,13 +1001,20 @@ export default function EditPDFPage() {
                   key={tool.id}
                   variant={activeTool === tool.id ? "default" : "ghost"}
                   size="sm"
-                  className={cn("h-8 px-2.5 gap-1.5 text-xs", activeTool === tool.id && "gradient-primary")}
+                  className={cn(
+                    "h-8 px-2.5 gap-1.5 text-xs",
+                    activeTool === tool.id && "gradient-primary"
+                  )}
                   onClick={() => {
                     if (tool.id === "image") {
                       imageInputRef.current?.click();
                     } else {
+                      if (editingText) commitTextBox(editingText);
                       setActiveTool(tool.id);
-                      setEditingText(null);
+                      if (tool.id === "text") {
+                        setSelectedElement(null);
+                        setEditingText(null);
+                      }
                     }
                   }}
                   title={tool.label}
@@ -609,89 +1031,6 @@ export default function EditPDFPage() {
                 className="hidden"
               />
             </div>
-
-            {/* Text formatting (when text tool or text selected) */}
-            {(activeTool === "text" || (selectedElement && elements.find((e) => e.id === selectedElement)?.type === "text")) && (
-              <div className="flex items-center gap-1 border-r border-border pr-2">
-                <Input
-                  type="color"
-                  value={textColor}
-                  onChange={(e) => {
-                    setTextColor(e.target.value);
-                    if (selectedElement) {
-                      setElements((prev) =>
-                        prev.map((el) =>
-                          el.id === selectedElement && el.type === "text"
-                            ? { ...el, color: e.target.value }
-                            : el
-                        )
-                      );
-                    }
-                  }}
-                  className="h-8 w-8 p-0.5 rounded cursor-pointer"
-                  title="Text color"
-                />
-                <Input
-                  type="number"
-                  value={textFontSize}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value) || 16;
-                    setTextFontSize(v);
-                    if (selectedElement) {
-                      setElements((prev) =>
-                        prev.map((el) =>
-                          el.id === selectedElement && el.type === "text"
-                            ? { ...el, fontSize: v }
-                            : el
-                        )
-                      );
-                    }
-                  }}
-                  className="h-8 w-14 text-xs"
-                  min={8}
-                  max={72}
-                  title="Font size"
-                />
-                <Button
-                  variant={textBold ? "default" : "ghost"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => {
-                    setTextBold(!textBold);
-                    if (selectedElement) {
-                      setElements((prev) =>
-                        prev.map((el) =>
-                          el.id === selectedElement && el.type === "text"
-                            ? { ...el, bold: !textBold }
-                            : el
-                        )
-                      );
-                    }
-                  }}
-                >
-                  <Bold className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant={textItalic ? "default" : "ghost"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => {
-                    setTextItalic(!textItalic);
-                    if (selectedElement) {
-                      setElements((prev) =>
-                        prev.map((el) =>
-                          el.id === selectedElement && el.type === "text"
-                            ? { ...el, italic: !textItalic }
-                            : el
-                        )
-                      );
-                    }
-                  }}
-                >
-                  <Italic className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
 
             {/* Whiteout color */}
             {activeTool === "whiteout" && (
@@ -729,45 +1068,87 @@ export default function EditPDFPage() {
               </div>
             )}
 
-            {/* Undo/Redo/Delete */}
+            {/* Undo / Redo / Delete */}
             <div className="flex items-center gap-1 border-r border-border pr-2">
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={undo} disabled={undoStack.length === 0} title="Undo">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={undo}
+                disabled={undoStack.length === 0}
+                title="Undo (Ctrl+Z)"
+              >
                 <Undo2 className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={redo} disabled={redoStack.length === 0} title="Redo">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={redo}
+                disabled={redoStack.length === 0}
+                title="Redo (Ctrl+Y)"
+              >
                 <Redo2 className="h-3.5 w-3.5" />
               </Button>
               {selectedElement && (
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={deleteSelected} title="Delete">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-destructive"
+                  onClick={deleteSelected}
+                  title="Delete (Del)"
+                >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               )}
             </div>
 
-            {/* Zoom */}
+            {/* Zoom controls */}
             <div className="flex items-center gap-1 border-r border-border pr-2">
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setZoom(Math.max(0.25, zoom - 0.25))} title="Zoom out">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setZoom(Math.max(0.25, zoom - 0.25))}
+                title="Zoom out"
+              >
                 <ZoomOut className="h-3.5 w-3.5" />
               </Button>
               <span className="text-xs w-10 text-center">{Math.round(zoom * 100)}%</span>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setZoom(Math.min(3, zoom + 0.25))} title="Zoom in">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setZoom(Math.min(3, zoom + 0.25))}
+                title="Zoom in"
+              >
                 <ZoomIn className="h-3.5 w-3.5" />
               </Button>
             </div>
 
-            {/* Export */}
-            <Button onClick={handleExport} size="sm" className="h-8 gap-1.5 ml-auto" disabled={processing}>
+            {/* Export button */}
+            <Button
+              onClick={handleExport}
+              size="sm"
+              className="h-8 gap-1.5 ml-auto gradient-primary"
+              disabled={processing}
+            >
               <Download className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Export PDF</span>
+              <span className="hidden sm:inline">Apply & Save</span>
             </Button>
           </div>
 
-          {/* Page navigation */}
+          {/* ── Page navigation ── */}
           <div className="flex items-center justify-center gap-3">
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+              onClick={() => {
+                if (editingText) commitTextBox(editingText);
+                setCurrentPage(Math.max(0, currentPage - 1));
+                setSelectedElement(null);
+                setEditingText(null);
+              }}
               disabled={currentPage === 0}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -778,15 +1159,23 @@ export default function EditPDFPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setCurrentPage(Math.min(pageImages.length - 1, currentPage + 1))}
+              onClick={() => {
+                if (editingText) commitTextBox(editingText);
+                setCurrentPage(Math.min(pageImages.length - 1, currentPage + 1));
+                setSelectedElement(null);
+                setEditingText(null);
+              }}
               disabled={currentPage === pageImages.length - 1}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Canvas area */}
-          <div className="relative overflow-auto rounded-xl border border-border bg-muted/30 flex justify-center" style={{ maxHeight: "70vh" }}>
+          {/* ── Canvas area with overlaid elements ── */}
+          <div
+            className="relative overflow-auto rounded-xl border border-border bg-muted/30 flex justify-center"
+            style={{ maxHeight: "75vh" }}
+          >
             <div
               ref={canvasContainerRef}
               className="relative inline-block"
@@ -796,22 +1185,19 @@ export default function EditPDFPage() {
                 cursor:
                   activeTool === "text"
                     ? "text"
-                    : activeTool === "whiteout"
+                    : activeTool === "whiteout" || activeTool === "draw"
                     ? "crosshair"
-                    : activeTool === "draw"
-                    ? "crosshair"
-                    : activeTool === "select"
-                    ? "default"
                     : "default",
               }}
               onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}
               onMouseUp={handleCanvasMouseUp}
+              onDoubleClick={handleCanvasDoubleClick}
               onMouseLeave={() => {
                 if (isDrawing) handleCanvasMouseUp({} as any);
               }}
             >
-              {/* PDF page image */}
+              {/* PDF page background image */}
               {pageImages[currentPage] && (
                 <img
                   src={pageImages[currentPage]}
@@ -821,112 +1207,254 @@ export default function EditPDFPage() {
                 />
               )}
 
-              {/* Render elements */}
+              {/* ── Render all elements for current page ── */}
               {currentPageElements.map((el) => {
+                const isSelected = selectedElement === el.id;
+
+                /* ── WHITEOUT ELEMENT ── */
                 if (el.type === "whiteout") {
                   return (
                     <div
                       key={el.id}
-                      className={cn(
-                        "absolute",
-                        selectedElement === el.id && "ring-2 ring-primary ring-offset-1"
-                      )}
+                      className={cn("absolute", isSelected && "ring-2 ring-primary")}
                       style={{
                         left: el.x,
                         top: el.y,
                         width: el.width,
                         height: el.height,
                         backgroundColor: el.color,
-                      }}
-                    />
-                  );
-                }
-
-                if (el.type === "text") {
-                  return (
-                    <div
-                      key={el.id}
-                      className={cn(
-                        "absolute",
-                        selectedElement === el.id && "ring-2 ring-primary ring-offset-1 rounded"
-                      )}
-                      style={{
-                        left: el.x,
-                        top: el.y - el.fontSize * 1.2,
                         cursor: activeTool === "select" ? "move" : "default",
                       }}
                     >
-                      {editingText === el.id ? (
-                        <input
-                          autoFocus
-                          value={el.text}
-                          onChange={(e) =>
-                            setElements((prev) =>
-                              prev.map((item) =>
-                                item.id === el.id && item.type === "text"
-                                  ? { ...item, text: e.target.value }
-                                  : item
-                              )
-                            )
-                          }
-                          onBlur={() => {
-                            pushUndo();
-                            setEditingText(null);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              pushUndo();
-                              setEditingText(null);
-                            }
-                          }}
-                          className="bg-transparent border-none outline-none p-0 m-0"
-                          style={{
-                            color: el.color,
-                            fontSize: el.fontSize,
-                            fontWeight: el.bold ? "bold" : "normal",
-                            fontStyle: el.italic ? "italic" : "normal",
-                            fontFamily: el.fontFamily,
-                            minWidth: "50px",
-                          }}
-                        />
-                      ) : (
-                        <span
-                          onDoubleClick={() => {
-                            if (activeTool === "select") {
-                              setEditingText(el.id);
-                              setSelectedElement(el.id);
-                            }
-                          }}
-                          style={{
-                            color: el.color,
-                            fontSize: el.fontSize,
-                            fontWeight: el.bold ? "bold" : "normal",
-                            fontStyle: el.italic ? "italic" : "normal",
-                            fontFamily: el.fontFamily,
-                            whiteSpace: "nowrap",
-                            userSelect: "none",
-                          }}
-                        >
-                          {el.text}
-                        </span>
-                      )}
+                      {isSelected && renderResizeHandles(el)}
                     </div>
                   );
                 }
 
-                if (el.type === "image") {
+                /* ── TEXT ELEMENT ── */
+                if (el.type === "text") {
+                  const isEditing = editingText === el.id;
+
                   return (
                     <div
                       key={el.id}
                       className={cn(
-                        "absolute",
-                        selectedElement === el.id && "ring-2 ring-primary ring-offset-1"
+                        "absolute group",
+                        isSelected && "ring-2 ring-primary rounded-sm"
                       )}
                       style={{
                         left: el.x,
                         top: el.y,
                         width: el.width,
+                        minHeight: el.height,
+                        cursor: activeTool === "select" ? (isEditing ? "text" : "move") : "default",
+                      }}
+                    >
+                      {/* ── Floating toolbar above text box (visible when editing) ── */}
+                      {isSelected && isEditing && (
+                        <div
+                          className="absolute bottom-full left-0 mb-2 flex items-center gap-1 p-1.5 rounded-lg border border-border bg-card shadow-lg z-50"
+                          style={{ whiteSpace: "nowrap" }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          {/* Font family selector */}
+                          <select
+                            value={el.fontFamily}
+                            onChange={(e) => updateTextProperty("fontFamily", e.target.value)}
+                            className="h-7 text-xs rounded border border-border bg-background px-1 outline-none"
+                          >
+                            {FONT_FAMILIES.map((f) => (
+                              <option key={f} value={f}>
+                                {f}
+                              </option>
+                            ))}
+                          </select>
+
+                          {/* Font size selector */}
+                          <select
+                            value={el.fontSize}
+                            onChange={(e) =>
+                              updateTextProperty("fontSize", parseInt(e.target.value))
+                            }
+                            className="h-7 w-14 text-xs rounded border border-border bg-background px-1 outline-none"
+                          >
+                            {FONT_SIZES.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+
+                          {/* Bold toggle */}
+                          <button
+                            className={cn(
+                              "h-7 w-7 flex items-center justify-center rounded text-xs",
+                              el.bold
+                                ? "bg-primary text-primary-foreground"
+                                : "hover:bg-muted"
+                            )}
+                            onClick={() => updateTextProperty("bold", !el.bold)}
+                            title="Bold"
+                          >
+                            <Bold className="h-3.5 w-3.5" />
+                          </button>
+
+                          {/* Italic toggle */}
+                          <button
+                            className={cn(
+                              "h-7 w-7 flex items-center justify-center rounded text-xs",
+                              el.italic
+                                ? "bg-primary text-primary-foreground"
+                                : "hover:bg-muted"
+                            )}
+                            onClick={() => updateTextProperty("italic", !el.italic)}
+                            title="Italic"
+                          >
+                            <Italic className="h-3.5 w-3.5" />
+                          </button>
+
+                          {/* Underline toggle */}
+                          <button
+                            className={cn(
+                              "h-7 w-7 flex items-center justify-center rounded text-xs",
+                              el.underline
+                                ? "bg-primary text-primary-foreground"
+                                : "hover:bg-muted"
+                            )}
+                            onClick={() => updateTextProperty("underline", !el.underline)}
+                            title="Underline"
+                          >
+                            <Underline className="h-3.5 w-3.5" />
+                          </button>
+
+                          {/* Text color picker */}
+                          <input
+                            type="color"
+                            value={el.color}
+                            onChange={(e) => updateTextProperty("color", e.target.value)}
+                            className="h-7 w-7 p-0.5 rounded cursor-pointer border border-border"
+                            title="Text color"
+                          />
+                        </div>
+                      )}
+
+                      {/* ── The actual editable text area ── */}
+                      {isEditing ? (
+                        <div
+                          data-text-editor
+                          ref={(node) => {
+                            if (node) {
+                              textInputRefs.current.set(el.id, node);
+                              // Set initial text content when entering edit mode
+                              if (node.innerText !== el.text) {
+                                node.innerText = el.text;
+                              }
+                            } else {
+                              textInputRefs.current.delete(el.id);
+                            }
+                          }}
+                          contentEditable
+                          suppressContentEditableWarning
+                          className="outline-none w-full min-h-[1.5em] break-words"
+                          style={{
+                            color: el.color,
+                            fontSize: el.fontSize,
+                            fontWeight: el.bold ? "bold" : "normal",
+                            fontStyle: el.italic ? "italic" : "normal",
+                            textDecoration: el.underline ? "underline" : "none",
+                            fontFamily: el.fontFamily,
+                            lineHeight: 1.3,
+                            padding: "2px 4px",
+                            caretColor: el.color,
+                            wordBreak: "break-word",
+                            whiteSpace: "pre-wrap",
+                          }}
+                          onInput={(e) => {
+                            // Auto-expand: update height based on content
+                            const div = e.currentTarget;
+                            const text = div.innerText || "";
+                            setElements((prev) =>
+                              prev.map((item) =>
+                                item.id === el.id && item.type === "text"
+                                  ? {
+                                      ...item,
+                                      text,
+                                      height: Math.max(
+                                        el.fontSize * 1.5,
+                                        div.scrollHeight
+                                      ),
+                                    }
+                                  : item
+                              )
+                            );
+                          }}
+                          onBlur={() => {
+                            // Commit text when clicking outside
+                            pushUndo();
+                            commitTextBox(el.id);
+                          }}
+                          onKeyDown={(e) => {
+                            // Escape to commit and deselect
+                            if (e.key === "Escape") {
+                              e.preventDefault();
+                              pushUndo();
+                              commitTextBox(el.id);
+                              setSelectedElement(null);
+                            }
+                            // Stop propagation so global shortcuts don't fire
+                            e.stopPropagation();
+                          }}
+                          onMouseDown={(e) => {
+                            // Let text cursor/selection work normally inside the editor
+                            e.stopPropagation();
+                          }}
+                        />
+                      ) : (
+                        <div
+                          data-text-editor
+                          className="w-full min-h-[1.5em] break-words select-none"
+                          style={{
+                            color: el.color,
+                            fontSize: el.fontSize,
+                            fontWeight: el.bold ? "bold" : "normal",
+                            fontStyle: el.italic ? "italic" : "normal",
+                            textDecoration: el.underline ? "underline" : "none",
+                            fontFamily: el.fontFamily,
+                            lineHeight: 1.3,
+                            padding: "2px 4px",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                          }}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            if (activeTool === "select") {
+                              setSelectedElement(el.id);
+                              setEditingText(el.id);
+                            }
+                          }}
+                        >
+                          {el.text || "\u200B"}
+                        </div>
+                      )}
+
+                      {/* Resize handles for text boxes */}
+                      {isSelected && !isEditing && renderResizeHandles(el)}
+                    </div>
+                  );
+                }
+
+                /* ── IMAGE ELEMENT ── */
+                if (el.type === "image") {
+                  return (
+                    <div
+                      key={el.id}
+                      className={cn("absolute", isSelected && "ring-2 ring-primary")}
+                      style={{
+                        left: el.x,
+                        top: el.y,
+                        width: el.width,
                         height: el.height,
+                        cursor: activeTool === "select" ? "move" : "default",
                       }}
                     >
                       <img
@@ -935,17 +1463,20 @@ export default function EditPDFPage() {
                         className="w-full h-full object-contain pointer-events-none"
                         draggable={false}
                       />
+                      {isSelected && renderResizeHandles(el)}
                     </div>
                   );
                 }
 
+                /* ── DRAW ELEMENT ── */
                 if (el.type === "draw") {
                   return (
                     <svg
                       key={el.id}
                       className={cn(
                         "absolute inset-0 pointer-events-none",
-                        selectedElement === el.id && "drop-shadow-[0_0_3px_rgba(139,92,246,0.8)]"
+                        isSelected &&
+                          "drop-shadow-[0_0_3px_rgba(139,92,246,0.8)]"
                       )}
                       style={{ width: "100%", height: "100%" }}
                     >
@@ -964,57 +1495,73 @@ export default function EditPDFPage() {
                 return null;
               })}
 
-              {/* Drawing preview for whiteout */}
-              {activeTool === "whiteout" && isDrawing && currentDraw && currentDraw.length === 2 && (
-                <div
-                  className="absolute border-2 border-dashed border-primary/50 pointer-events-none"
-                  style={{
-                    left: Math.min(currentDraw[0].x, currentDraw[1].x),
-                    top: Math.min(currentDraw[0].y, currentDraw[1].y),
-                    width: Math.abs(currentDraw[1].x - currentDraw[0].x),
-                    height: Math.abs(currentDraw[1].y - currentDraw[0].y),
-                    backgroundColor: `${whiteoutColor}80`,
-                  }}
-                />
-              )}
-
-              {/* Drawing preview for freehand */}
-              {activeTool === "draw" && isDrawing && currentDraw && currentDraw.length > 1 && (
-                <svg className="absolute inset-0 pointer-events-none" style={{ width: "100%", height: "100%" }}>
-                  <polyline
-                    points={currentDraw.map((p) => `${p.x},${p.y}`).join(" ")}
-                    fill="none"
-                    stroke={drawColor}
-                    strokeWidth={drawWidth}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity={0.7}
+              {/* ── Whiteout draw preview ── */}
+              {activeTool === "whiteout" &&
+                isDrawing &&
+                currentDraw &&
+                currentDraw.length === 2 && (
+                  <div
+                    className="absolute border-2 border-dashed border-primary/50 pointer-events-none"
+                    style={{
+                      left: Math.min(currentDraw[0].x, currentDraw[1].x),
+                      top: Math.min(currentDraw[0].y, currentDraw[1].y),
+                      width: Math.abs(currentDraw[1].x - currentDraw[0].x),
+                      height: Math.abs(currentDraw[1].y - currentDraw[0].y),
+                      backgroundColor: `${whiteoutColor}80`,
+                    }}
                   />
-                </svg>
-              )}
+                )}
+
+              {/* ── Freehand draw preview ── */}
+              {activeTool === "draw" &&
+                isDrawing &&
+                currentDraw &&
+                currentDraw.length > 1 && (
+                  <svg
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ width: "100%", height: "100%" }}
+                  >
+                    <polyline
+                      points={currentDraw.map((p) => `${p.x},${p.y}`).join(" ")}
+                      fill="none"
+                      stroke={drawColor}
+                      strokeWidth={drawWidth}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={0.7}
+                    />
+                  </svg>
+                )}
             </div>
           </div>
 
-          {/* Tip */}
+          {/* ── Status bar / helper text ── */}
           <p className="text-xs text-center text-muted-foreground">
-            {activeTool === "select" && "Click to select elements. Double-click text to edit. Drag to move."}
-            {activeTool === "text" && "Click anywhere on the page to place text. Edit it by double-clicking."}
-            {activeTool === "whiteout" && "Click and drag to draw a rectangle. Use this to cover existing text."}
-            {activeTool === "draw" && "Click and drag to draw freehand lines on the page."}
-            {activeTool === "image" && "Select an image file to place on the page."}
+            {activeTool === "select" &&
+              "Click to select elements. Double-click text to edit. Drag to move. Drag corners to resize."}
+            {activeTool === "text" &&
+              "Click anywhere on the page to place a text box. Start typing immediately."}
+            {activeTool === "whiteout" &&
+              "Click and drag to draw a whiteout rectangle over content you want to hide."}
+            {activeTool === "draw" &&
+              "Click and drag to draw freehand lines on the page."}
+            {activeTool === "image" &&
+              "Select an image file to place on the page."}
           </p>
 
-          {/* New file button */}
+          {/* ── Upload different PDF button ── */}
           <div className="flex justify-center">
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
+                if (editingText) commitTextBox(editingText);
                 setFiles([]);
                 setPageImages([]);
                 setPdfBytes(null);
                 setElements([]);
                 setSelectedElement(null);
+                setEditingText(null);
                 setUndoStack([]);
                 setRedoStack([]);
               }}
