@@ -21,6 +21,7 @@ import {
   Highlighter,
   Strikethrough,
   X,
+  TextCursorInput,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +35,19 @@ import { ToolSEOContent } from "@/components/seo/tool-seo-content";
    TYPE DEFINITIONS FOR ALL EDITOR ELEMENTS
    ═══════════════════════════════════════════════ */
 
-type EditTool = "select" | "text" | "whiteout" | "image" | "draw" | "sign" | "highlight";
+type EditTool = "select" | "text" | "edittext" | "whiteout" | "image" | "draw" | "sign" | "highlight";
+
+/* Represents a text item extracted from the original PDF via PDF.js */
+interface PdfTextItem {
+  text: string;
+  /* Coordinates in rendered-image space (scale=2) */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fontSize: number;
+  fontFamily: string;
+}
 
 interface TextElement {
   type: "text";
@@ -322,6 +335,8 @@ export default function EditPDFPage() {
   const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
   /* Store the natural size of the rendered page image for coordinate mapping */
   const [pageSize, setPageSize] = useState<{ w: number; h: number } | null>(null);
+  /* Extracted text items per page for click-to-edit existing text */
+  const [pdfTextItems, setPdfTextItems] = useState<Map<number, PdfTextItem[]>>(new Map());
 
   /* ── Tool state ── */
   const [activeTool, setActiveTool] = useState<EditTool>("text");
@@ -436,6 +451,7 @@ export default function EditPDFPage() {
 
         const pdf = await pdfjs.getDocument({ data: bytes }).promise;
         const images: string[] = [];
+        const allTextItems = new Map<number, PdfTextItem[]>();
 
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
@@ -451,6 +467,34 @@ export default function EditPDFPage() {
             canvas,
           } as any)).promise;
 
+          /* Extract text layer for click-to-edit existing text */
+          try {
+            const textContent = await page.getTextContent();
+            const items: PdfTextItem[] = [];
+            for (const item of textContent.items) {
+              if (!("str" in item) || !item.str.trim()) continue;
+              const tx = pdfjs.Util.transform(viewport.transform, item.transform);
+              /* tx gives us [scaleX, shearX, shearY, scaleY, translateX, translateY] */
+              const fontSize = Math.abs(tx[3]); // scaled font size
+              const x = tx[4];
+              const y = tx[5] - fontSize; // PDF.js gives baseline y, adjust to top
+              const width = item.width * viewport.scale;
+              const height = fontSize * 1.2;
+              items.push({
+                text: item.str,
+                x,
+                y,
+                width: Math.max(width, item.str.length * fontSize * 0.5),
+                height,
+                fontSize,
+                fontFamily: "Arial",
+              });
+            }
+            allTextItems.set(i - 1, items); // 0-indexed page
+          } catch {
+            /* Text extraction failed for this page — not critical */
+          }
+
           images.push(canvas.toDataURL("image/png"));
           if (i === 1) {
             setPageSize({ w: viewport.width, h: viewport.height });
@@ -458,6 +502,7 @@ export default function EditPDFPage() {
           setProgress(20 + Math.round((i / pdf.numPages) * 70));
         }
 
+        setPdfTextItems(allTextItems);
         setPageImages(images);
         setProgress(100);
       } catch (err) {
@@ -642,6 +687,90 @@ export default function EditPDFPage() {
       setElements((prev) => [...prev, newEl]);
       setSelectedElement(newEl.id);
       setEditingText(newEl.id);
+      return;
+    }
+
+    /* ── EDIT EXISTING TEXT — click on original PDF text to replace it ── */
+    if (activeTool === "edittext") {
+      if (editingText) commitTextBox(editingText);
+
+      /* Find the PDF text item under the click position */
+      const pageTextItems = pdfTextItems.get(currentPage) || [];
+      let hitItem: PdfTextItem | null = null;
+
+      for (const item of pageTextItems) {
+        if (
+          pos.x >= item.x &&
+          pos.x <= item.x + item.width &&
+          pos.y >= item.y &&
+          pos.y <= item.y + item.height
+        ) {
+          hitItem = item;
+          break;
+        }
+      }
+
+      if (hitItem) {
+        pushUndo();
+        const padding = 4;
+        const ts = Date.now();
+
+        /* Step 1: Create a whiteout rectangle to cover the original text */
+        const whiteout: WhiteoutElement = {
+          type: "whiteout",
+          id: `wo-edit-${ts}`,
+          x: hitItem.x - padding,
+          y: hitItem.y - padding,
+          width: hitItem.width + padding * 2,
+          height: hitItem.height + padding * 2,
+          color: "#ffffff",
+          page: currentPage,
+        };
+
+        /* Step 2: Create a text box pre-filled with the original text */
+        const textBox: TextElement = {
+          type: "text",
+          id: `text-edit-${ts}`,
+          x: hitItem.x,
+          y: hitItem.y,
+          width: hitItem.width + padding * 2,
+          height: hitItem.height,
+          text: hitItem.text,
+          fontSize: hitItem.fontSize,
+          fontFamily: hitItem.fontFamily,
+          color: "#000000",
+          bold: false,
+          italic: false,
+          underline: false,
+          page: currentPage,
+        };
+
+        setElements((prev) => [...prev, whiteout, textBox]);
+        setSelectedElement(textBox.id);
+        setEditingText(textBox.id);
+      } else {
+        /* If no existing text was clicked, behave like regular text tool */
+        pushUndo();
+        const newEl: TextElement = {
+          type: "text",
+          id: `text-${Date.now()}`,
+          x: pos.x,
+          y: pos.y,
+          width: 200,
+          height: defaultFontSize * 1.5,
+          text: "",
+          fontSize: defaultFontSize,
+          fontFamily: defaultFontFamily,
+          color: defaultTextColor,
+          bold: defaultBold,
+          italic: defaultItalic,
+          underline: defaultUnderline,
+          page: currentPage,
+        };
+        setElements((prev) => [...prev, newEl]);
+        setSelectedElement(newEl.id);
+        setEditingText(newEl.id);
+      }
       return;
     }
 
@@ -1175,6 +1304,7 @@ export default function EditPDFPage() {
 
   const tools: { id: EditTool; icon: typeof Pencil; label: string; action?: () => void }[] = [
     { id: "select", icon: MousePointer, label: "Select" },
+    { id: "edittext", icon: TextCursorInput, label: "Edit Text" },
     { id: "text", icon: Type, label: "Add Text" },
     { id: "whiteout", icon: Square, label: "Whiteout" },
     { id: "highlight", icon: Highlighter, label: "Highlight" },
@@ -1445,7 +1575,7 @@ export default function EditPDFPage() {
                 transform: `scale(${zoom})`,
                 transformOrigin: "top center",
                 cursor:
-                  activeTool === "text" ? "text"
+                  activeTool === "text" || activeTool === "edittext" ? "text"
                   : activeTool === "whiteout" || activeTool === "draw" || activeTool === "highlight" ? "crosshair"
                   : "default",
               }}
@@ -1785,7 +1915,8 @@ export default function EditPDFPage() {
           {/* ── Helper text ── */}
           <p className="text-xs text-center text-muted-foreground">
             {activeTool === "select" && "Click to select. Double-click text to edit. Drag to move. Drag corners to resize."}
-            {activeTool === "text" && "Click anywhere to place a text box. Start typing immediately."}
+            {activeTool === "edittext" && "Click on any existing text in the PDF to edit it. The original text will be replaced."}
+            {activeTool === "text" && "Click anywhere to place a new text box. Start typing immediately."}
             {activeTool === "whiteout" && "Click and drag to draw a white rectangle over content."}
             {activeTool === "highlight" && "Click and drag over text to highlight, underline, or strike through."}
             {activeTool === "draw" && "Click and drag to draw freehand."}
