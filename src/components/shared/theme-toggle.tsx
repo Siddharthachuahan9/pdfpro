@@ -1,39 +1,25 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
+import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
-import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
 
+const subscribe = () => () => {};
+
+/** A plain word, not an icon: it says which theme a press will switch to. */
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return (
-      <Button variant="ghost" size="icon" className="h-9 w-9">
-        <Sun className="h-4 w-4" />
-      </Button>
-    );
-  }
+  const { resolvedTheme, setTheme } = useTheme();
+  // false during the server render and hydration, true afterwards: the theme is only known in the browser
+  const mounted = useSyncExternalStore(subscribe, () => true, () => false);
+  const dark = mounted && resolvedTheme === "dark";
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-9 w-9"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+    <button
+      type="button"
+      className="theme"
+      onClick={() => setTheme(dark ? "light" : "dark")}
+      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
     >
-      {theme === "dark" ? (
-        <Sun className="h-4 w-4 transition-transform" />
-      ) : (
-        <Moon className="h-4 w-4 transition-transform" />
-      )}
-      <span className="sr-only">Toggle theme</span>
-    </Button>
+      {mounted ? (dark ? "Light" : "Dark") : "Theme"}
+    </button>
   );
 }
