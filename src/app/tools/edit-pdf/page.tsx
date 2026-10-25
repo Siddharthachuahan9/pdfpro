@@ -157,16 +157,19 @@ function SignaturePadModal({
   ) => {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
+    /* The canvas is drawn at 460x200 but displayed at CSS width, so scale */
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
     if ("touches" in e) {
       const touch = e.touches[0] || e.changedTouches[0];
       return {
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top,
+        x: (touch.clientX - rect.left) * sx,
+        y: (touch.clientY - rect.top) * sy,
       };
     }
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: (e.clientX - rect.left) * sx,
+      y: (e.clientY - rect.top) * sy,
     };
   };
 
@@ -319,9 +322,17 @@ export default function EditPDFPage() {
   const [pageImages, setPageImages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [zoom, setZoom] = useState(1);
-  const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
-  /* Store the natural size of the rendered page image for coordinate mapping */
-  const [pageSize, setPageSize] = useState<{ w: number; h: number } | null>(null);
+  const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+  /* Size of every page in PDF points (pdf.js viewport at scale 1).
+     All overlay coordinates are stored in this space: 1 unit = 1 PDF point,
+     origin top-left of the visible page. */
+  const [pageSizes, setPageSizes] = useState<{ w: number; h: number }[]>([]);
+  const pageSize = pageSizes[currentPage] ?? null;
+  /* pdf.js viewports (scale 1) used to convert overlay points to PDF user space */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const viewportsRef = useRef<any[]>([]);
+  /* Width available for the page in the scroll area (CSS px) */
+  const [availWidth, setAvailWidth] = useState(0);
 
   /* ── Tool state ── */
   const [activeTool, setActiveTool] = useState<EditTool>("text");
@@ -373,6 +384,7 @@ export default function EditPDFPage() {
 
   /* ── Refs ── */
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const textInputRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -424,7 +436,8 @@ export default function EditPDFPage() {
       setProgress(10);
 
       try {
-        const bytes = await newFiles[0].arrayBuffer();
+        const bytes = new Uint8Array(await newFiles[0].arrayBuffer());
+        /* Keep our own copy: pdf.js transfers (detaches) the buffer it is given */
         setPdfBytes(bytes);
         setProgress(20);
 
@@ -434,30 +447,34 @@ export default function EditPDFPage() {
           import.meta.url
         ).toString();
 
-        const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+        const pdf = await pdfjs.getDocument({ data: bytes.slice() }).promise;
         const images: string[] = [];
+        const sizes: { w: number; h: number }[] = [];
+        viewportsRef.current = [];
 
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
+          const baseViewport = page.getViewport({ scale: 1 });
+          viewportsRef.current.push(baseViewport);
+          sizes.push({ w: baseViewport.width, h: baseViewport.height });
+          /* Render at 2x for a crisp preview; displayed at 1 CSS px per point */
           const viewport = page.getViewport({ scale: 2 });
           const canvas = document.createElement("canvas");
           canvas.width = viewport.width;
           canvas.height = viewport.height;
           const ctx = canvas.getContext("2d")!;
 
-          await (page.render({
+          await page.render({
             canvasContext: ctx,
             viewport,
             canvas,
-          } as any)).promise;
+          } as Parameters<typeof page.render>[0]).promise;
 
           images.push(canvas.toDataURL("image/png"));
-          if (i === 1) {
-            setPageSize({ w: viewport.width, h: viewport.height });
-          }
           setProgress(20 + Math.round((i / pdf.numPages) * 70));
         }
 
+        setPageSizes(sizes);
         setPageImages(images);
         setProgress(100);
       } catch (err) {
@@ -473,12 +490,18 @@ export default function EditPDFPage() {
      COORDINATE HELPERS
      ═══════════════════════════════════════════════ */
 
+  /* Fit the page to the available width (phones), then apply user zoom.
+     Overlay coordinates are in PDF points; the on-screen size is points * displayScale. */
+  const fitScale =
+    pageSize && availWidth > 0 ? Math.min(1.5, availWidth / pageSize.w) : 1;
+  const displayScale = fitScale * zoom;
+
   const getRelativePos = (e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
     const rect = canvasContainerRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
     return {
-      x: (e.clientX - rect.left) / zoom,
-      y: (e.clientY - rect.top) / zoom,
+      x: (e.clientX - rect.left) / displayScale,
+      y: (e.clientY - rect.top) / displayScale,
     };
   };
 
@@ -868,20 +891,30 @@ export default function EditPDFPage() {
         /* Center on the visible page */
         const cx = pageSize ? (pageSize.w - w) / 2 : 50;
         const cy = pageSize ? (pageSize.h - h) / 2 : 50;
+        /* pdf-lib embeds only PNG and JPEG: convert anything else (WebP, GIF…) to PNG */
+        let dataUrl = reader.result as string;
+        if (!/^data:image\/(png|jpe?g);/i.test(dataUrl)) {
+          const c = document.createElement("canvas");
+          c.width = img.naturalWidth;
+          c.height = img.naturalHeight;
+          c.getContext("2d")!.drawImage(img, 0, 0);
+          dataUrl = c.toDataURL("image/png");
+        }
+        const id = `img-${Date.now()}`;
         setElements((prev) => [
           ...prev,
           {
             type: "image",
-            id: `img-${Date.now()}`,
+            id,
             x: cx,
             y: cy,
             width: w,
             height: h,
-            dataUrl: reader.result as string,
+            dataUrl,
             page: currentPage,
           },
         ]);
-        setSelectedElement(`img-${Date.now() - 1}`); // close enough
+        setSelectedElement(id);
         setActiveTool("select");
       };
       img.src = reader.result as string;
@@ -939,11 +972,6 @@ export default function EditPDFPage() {
     }
   };
 
-  const getSelectedTextEl = (): TextElement | null => {
-    if (!selectedElement) return null;
-    const el = elements.find((e) => e.id === selectedElement);
-    return el && el.type === "text" ? el : null;
-  };
 
   /* ═══════════════════════════════════════════════
      EFFECTS
@@ -967,6 +995,18 @@ export default function EditPDFPage() {
       return () => clearTimeout(timeout);
     }
   }, [editingText]);
+
+  /* Track the width available for the page so it fits small screens */
+  const hasPages = pageImages.length > 0;
+  useEffect(() => {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    const measure = () => setAvailWidth(Math.max(0, el.clientWidth - 16));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hasPages]);
 
   /* Global keyboard shortcuts */
   useEffect(() => {
@@ -1003,65 +1043,129 @@ export default function EditPDFPage() {
 
   const handleExport = async () => {
     if (!pdfBytes) return;
+    /* Include the text box that is still being typed in */
+    let exportElements = elements;
+    if (editingText) {
+      const liveText = textInputRefs.current.get(editingText)?.innerText ?? "";
+      exportElements = elements.map((el) =>
+        el.id === editingText && el.type === "text" ? { ...el, text: liveText } : el
+      );
+      commitTextBox(editingText);
+    }
     setProcessing(true);
     setProgress(10);
 
     try {
-      const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
-      const pdf = await PDFDocument.load(pdfBytes);
-      const font = await pdf.embedFont(StandardFonts.Helvetica);
-      const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
-      const fontItalic = await pdf.embedFont(StandardFonts.HelveticaOblique);
-      const fontBoldItalic = await pdf.embedFont(StandardFonts.HelveticaBoldOblique);
+      const { PDFDocument, rgb, StandardFonts, degrees } = await import("pdf-lib");
+      const pdf = await PDFDocument.load(pdfBytes.slice());
+      const fontCache = new Map<string, Awaited<ReturnType<typeof pdf.embedFont>>>();
+      const getFont = async (family: string, bold: boolean, italic: boolean) => {
+        const f = family.toLowerCase();
+        const base = f.includes("courier") ? "courier" : f.includes("times") || f.includes("georgia") ? "times" : "helvetica";
+        const table = {
+          helvetica: [StandardFonts.Helvetica, StandardFonts.HelveticaBold, StandardFonts.HelveticaOblique, StandardFonts.HelveticaBoldOblique],
+          times: [StandardFonts.TimesRoman, StandardFonts.TimesRomanBold, StandardFonts.TimesRomanItalic, StandardFonts.TimesRomanBoldItalic],
+          courier: [StandardFonts.Courier, StandardFonts.CourierBold, StandardFonts.CourierOblique, StandardFonts.CourierBoldOblique],
+        }[base];
+        const name = table[(bold ? 1 : 0) + (italic ? 2 : 0)];
+        if (!fontCache.has(name)) fontCache.set(name, await pdf.embedFont(name));
+        return fontCache.get(name)!;
+      };
       const pages = pdf.getPages();
       setProgress(30);
 
-      /* PDF.js rendered at scale=2 → divide by 2 for PDF coordinates */
-      const scale = 2;
+      const hexToRgb = (hex: string) => {
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+        return rgb(r, g, b);
+      };
 
       for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
         const page = pages[pageIdx];
-        const { height } = page.getSize();
-        const pageElements = elements.filter((el) => el.page === pageIdx);
+        const vp = viewportsRef.current[pageIdx];
+        const rotation = (((vp?.rotation ?? 0) % 360) + 360) % 360;
+        /* Overlay coords are PDF points from the top-left of the rendered page.
+           pdf.js knows the crop box offset and page rotation, so let it convert. */
+        const toPdf = (x: number, y: number) => {
+          if (vp) {
+            const [px, py] = vp.convertToPdfPoint(x, y);
+            return { x: px, y: py };
+          }
+          return { x, y: page.getSize().height - y };
+        };
+        /* Axis-aligned box (top-left x,y + w,h in overlay space) → PDF rect */
+        const toPdfRect = (x: number, y: number, w: number, h: number) => {
+          const a = toPdf(x, y);
+          const b = toPdf(x + w, y + h);
+          return {
+            x: Math.min(a.x, b.x),
+            y: Math.min(a.y, b.y),
+            width: Math.abs(b.x - a.x),
+            height: Math.abs(b.y - a.y),
+          };
+        };
+        /* Images/text need their own rotation on rotated pages */
+        const contentRotate = degrees(rotation);
+        const pageElements = exportElements.filter((el) => el.page === pageIdx);
 
         for (const el of pageElements) {
-          /* Helper: parse hex color → rgb() */
-          const hexToRgb = (hex: string) => {
-            const r = parseInt(hex.slice(1, 3), 16) / 255;
-            const g = parseInt(hex.slice(3, 5), 16) / 255;
-            const b = parseInt(hex.slice(5, 7), 16) / 255;
-            return rgb(r, g, b);
-          };
-
           /* ── WHITEOUT ── */
           if (el.type === "whiteout") {
-            page.drawRectangle({
-              x: el.x / scale,
-              y: height - (el.y + el.height) / scale,
-              width: el.width / scale,
-              height: el.height / scale,
-              color: hexToRgb(el.color),
-            });
+            page.drawRectangle({ ...toPdfRect(el.x, el.y, el.width, el.height), color: hexToRgb(el.color) });
           }
 
-          /* ── TEXT ── */
+          /* ── TEXT ── (matches the on-screen box: 4px/2px padding, line-height 1.3) */
           if (el.type === "text" && el.text.trim()) {
-            let selectedFont = font;
-            if (el.bold && el.italic) selectedFont = fontBoldItalic;
-            else if (el.bold) selectedFont = fontBold;
-            else if (el.italic) selectedFont = fontItalic;
-
-            const lines = el.text.split("\n");
-            const lineH = (el.fontSize / scale) * 1.3;
+            const font = await getFont(el.fontFamily, el.bold, el.italic);
+            const size = el.fontSize;
+            const lineH = size * 1.3;
+            const maxW = Math.max(10, el.width - 8);
+            /* Drop characters the standard fonts cannot encode instead of failing */
+            const clean = (t: string) =>
+              Array.from(t)
+                .map((ch) => {
+                  try {
+                    font.encodeText(ch);
+                    return ch;
+                  } catch {
+                    return "?";
+                  }
+                })
+                .join("");
+            /* Wrap like the browser does (word wrap, then hard break long words) */
+            const lines: string[] = [];
+            for (const para of clean(el.text).split("\n")) {
+              let cur = "";
+              for (const word of para.split(/(\s+)/)) {
+                const next = cur + word;
+                if (font.widthOfTextAtSize(next, size) <= maxW || cur === "") {
+                  cur = next;
+                } else {
+                  lines.push(cur.trimEnd());
+                  cur = word.trimStart();
+                }
+                while (font.widthOfTextAtSize(cur, size) > maxW && cur.length > 1) {
+                  let cut = cur.length - 1;
+                  while (cut > 1 && font.widthOfTextAtSize(cur.slice(0, cut), size) > maxW) cut--;
+                  lines.push(cur.slice(0, cut));
+                  cur = cur.slice(cut);
+                }
+              }
+              lines.push(cur);
+            }
             lines.forEach((line, idx) => {
-              if (line.trim()) {
-                page.drawText(line, {
-                  x: el.x / scale,
-                  y: height - (el.y / scale) - (el.fontSize / scale) - idx * lineH,
-                  size: el.fontSize / scale,
-                  font: selectedFont,
-                  color: hexToRgb(el.color),
-                });
+              if (!line.trim()) return;
+              /* Baseline ≈ top padding + half-leading + ascent ≈ 2 + 1.0 * size */
+              const lx = el.x + 4;
+              const ly = el.y + 2 + size * 1.0 + idx * lineH;
+              const p = toPdf(lx, ly);
+              page.drawText(line, { x: p.x, y: p.y, size, font, color: hexToRgb(el.color), rotate: contentRotate });
+              if (el.underline) {
+                const w = font.widthOfTextAtSize(line, size);
+                const a = toPdf(lx, ly + size * 0.12);
+                const b = toPdf(lx + w, ly + size * 0.12);
+                page.drawLine({ start: a, end: b, thickness: Math.max(0.5, size / 16), color: hexToRgb(el.color) });
               }
             });
           }
@@ -1070,82 +1174,40 @@ export default function EditPDFPage() {
           if (el.type === "draw") {
             const c = hexToRgb(el.color);
             for (let i = 0; i < el.points.length - 1; i++) {
-              const p1 = el.points[i];
-              const p2 = el.points[i + 1];
               page.drawLine({
-                start: { x: p1.x / scale, y: height - p1.y / scale },
-                end: { x: p2.x / scale, y: height - p2.y / scale },
-                thickness: el.lineWidth / scale,
+                start: toPdf(el.points[i].x, el.points[i].y),
+                end: toPdf(el.points[i + 1].x, el.points[i + 1].y),
+                thickness: el.lineWidth,
                 color: c,
               });
             }
           }
 
-          /* ── IMAGE ── */
-          if (el.type === "image") {
-            try {
-              const resp = await fetch(el.dataUrl);
-              const imgBytes = await resp.arrayBuffer();
-              const embedded = el.dataUrl.includes("image/png")
-                ? await pdf.embedPng(imgBytes)
-                : await pdf.embedJpg(imgBytes);
-              page.drawImage(embedded, {
-                x: el.x / scale,
-                y: height - (el.y + el.height) / scale,
-                width: el.width / scale,
-                height: el.height / scale,
-              });
-            } catch { /* skip */ }
+          /* ── IMAGE / SIGNATURE ── */
+          if (el.type === "image" || el.type === "signature") {
+            const resp = await fetch(el.dataUrl);
+            const imgBytes = new Uint8Array(await resp.arrayBuffer());
+            const isPng = imgBytes[0] === 0x89 && imgBytes[1] === 0x50;
+            const embedded = isPng ? await pdf.embedPng(imgBytes) : await pdf.embedJpg(imgBytes);
+            const r = toPdfRect(el.x, el.y, el.width, el.height);
+            if (rotation === 0) {
+              page.drawImage(embedded, r);
+            } else {
+              /* Anchor at the corner that maps to the image's bottom-left */
+              const anchor = toPdf(el.x, el.y + el.height);
+              page.drawImage(embedded, { x: anchor.x, y: anchor.y, width: el.width, height: el.height, rotate: contentRotate });
+            }
           }
 
           /* ── HIGHLIGHT / UNDERLINE / STRIKETHROUGH ── */
           if (el.type === "highlight") {
             const c = hexToRgb(el.color);
-            const elX = el.x / scale;
-            const elW = el.width / scale;
-            const elY = height - (el.y + el.height) / scale;
-            const elH = el.height / scale;
-
             if (el.style === "highlight") {
-              page.drawRectangle({
-                x: elX,
-                y: elY,
-                width: elW,
-                height: elH,
-                color: c,
-                opacity: 0.35,
-              });
-            } else if (el.style === "underline") {
-              page.drawLine({
-                start: { x: elX, y: elY },
-                end: { x: elX + elW, y: elY },
-                thickness: 1.5,
-                color: c,
-              });
-            } else if (el.style === "strikethrough") {
-              const midY = elY + elH / 2;
-              page.drawLine({
-                start: { x: elX, y: midY },
-                end: { x: elX + elW, y: midY },
-                thickness: 1.5,
-                color: c,
-              });
+              page.drawRectangle({ ...toPdfRect(el.x, el.y, el.width, el.height), color: c, opacity: 0.35 });
+            } else {
+              const yy = el.style === "underline" ? el.y + el.height : el.y + el.height / 2;
+              page.drawLine({ start: toPdf(el.x, yy), end: toPdf(el.x + el.width, yy), thickness: 1.5, color: c });
             }
-          }
-
-          /* ── SIGNATURE ── */
-          if (el.type === "signature") {
-            try {
-              const resp = await fetch(el.dataUrl);
-              const imgBytes = await resp.arrayBuffer();
-              const embedded = await pdf.embedPng(imgBytes);
-              page.drawImage(embedded, {
-                x: el.x / scale,
-                y: height - (el.y + el.height) / scale,
-                width: el.width / scale,
-                height: el.height / scale,
-              });
-            } catch { /* skip */ }
           }
         }
 
@@ -1157,7 +1219,11 @@ export default function EditPDFPage() {
       downloadPDF(edited, "edited.pdf");
     } catch (err) {
       console.error("Export failed:", err);
-      alert("Failed to export PDF. Please try again.");
+      alert(
+        err instanceof Error && /encrypt/i.test(err.message)
+          ? "This PDF is password-protected. Unlock it first, then edit."
+          : "Failed to export PDF. Please try again."
+      );
     } finally {
       setProcessing(false);
     }
@@ -1173,13 +1239,13 @@ export default function EditPDFPage() {
      TOOL DEFINITIONS
      ═══════════════════════════════════════════════ */
 
-  const tools: { id: EditTool; icon: typeof Pencil; label: string; action?: () => void }[] = [
+  const tools: { id: EditTool; icon: typeof Pencil; label: string }[] = [
     { id: "select", icon: MousePointer, label: "Select" },
     { id: "text", icon: Type, label: "Add Text" },
     { id: "whiteout", icon: Square, label: "Whiteout" },
     { id: "highlight", icon: Highlighter, label: "Highlight" },
     { id: "draw", icon: Pencil, label: "Draw" },
-    { id: "image", icon: ImagePlus, label: "Image", action: () => imageInputRef.current?.click() },
+    { id: "image", icon: ImagePlus, label: "Image" },
   ];
 
   /* ═══════════════════════════════════════════════
@@ -1259,8 +1325,8 @@ export default function EditPDFPage() {
                   size="sm"
                   className={cn("h-8 px-2.5 gap-1.5 text-xs", activeTool === tool.id && "gradient-primary")}
                   onClick={() => {
-                    if (tool.action) {
-                      tool.action();
+                    if (tool.id === "image") {
+                      imageInputRef.current?.click();
                     } else {
                       if (editingText) commitTextBox(editingText);
                       setActiveTool(tool.id);
@@ -1395,7 +1461,7 @@ export default function EditPDFPage() {
             </div>
 
             {/* Export */}
-            <Button onClick={handleExport} size="sm" className="h-8 gap-1.5 ml-auto gradient-primary" disabled={processing}>
+            <Button onClick={handleExport} size="sm" className="h-8 gap-1.5 ml-auto gradient-primary" disabled={processing} title="Apply & Save" aria-label="Apply & Save">
               <Download className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Apply &amp; Save</span>
             </Button>
@@ -1437,30 +1503,43 @@ export default function EditPDFPage() {
           {/* ═══════════════════════════════════════
              CANVAS AREA — PDF page + overlays
              ═══════════════════════════════════════ */}
-          <div className="relative overflow-auto rounded-xl border border-border bg-muted/30 flex justify-center" style={{ maxHeight: "75vh" }}>
+          <div ref={scrollAreaRef} className="relative overflow-auto rounded-xl border border-border bg-muted/30 p-2" style={{ maxHeight: "75vh" }}>
+            {/* Sizer: takes the scaled size so scrolling matches what is shown */}
+            <div
+              className="relative mx-auto"
+              style={{
+                width: (pageSize?.w ?? 0) * displayScale,
+                height: (pageSize?.h ?? 0) * displayScale,
+              }}
+            >
             <div
               ref={canvasContainerRef}
-              className="relative inline-block"
+              className="absolute left-0 top-0"
               style={{
-                transform: `scale(${zoom})`,
-                transformOrigin: "top center",
+                width: pageSize?.w,
+                height: pageSize?.h,
+                transform: `scale(${displayScale})`,
+                transformOrigin: "top left",
+                touchAction: activeTool === "select" && !selectedElement ? "auto" : "none",
                 cursor:
                   activeTool === "text" ? "text"
                   : activeTool === "whiteout" || activeTool === "draw" || activeTool === "highlight" ? "crosshair"
                   : "default",
               }}
-              onMouseDown={handleCanvasMouseDown}
-              onMouseMove={handleCanvasMouseMove}
-              onMouseUp={handleCanvasMouseUp}
+              onPointerDown={handleCanvasMouseDown}
+              onPointerMove={handleCanvasMouseMove}
+              onPointerUp={handleCanvasMouseUp}
               onDoubleClick={handleCanvasDoubleClick}
-              onMouseLeave={() => { if (isDrawing) handleCanvasMouseUp({} as any); }}
+              onPointerLeave={(e) => { if (isDrawing) handleCanvasMouseUp(e); }}
             >
-              {/* PDF page background */}
+              {/* PDF page background: drawn at 1 CSS px per PDF point */}
               {pageImages[currentPage] && (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={pageImages[currentPage]}
                   alt={`Page ${currentPage + 1}`}
                   className="block select-none pointer-events-none"
+                  style={{ width: pageSize?.w, height: pageSize?.h, maxWidth: "none" }}
                   draggable={false}
                 />
               )}
@@ -1686,6 +1765,7 @@ export default function EditPDFPage() {
                         cursor: activeTool === "select" ? "move" : "default",
                       }}
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={el.dataUrl} alt="Placed image" className="w-full h-full object-contain pointer-events-none" draggable={false} />
                       {isSelected && renderResizeHandles()}
                     </div>
@@ -1703,6 +1783,7 @@ export default function EditPDFPage() {
                         cursor: activeTool === "select" ? "move" : "default",
                       }}
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={el.dataUrl} alt="Signature" className="w-full h-full object-contain pointer-events-none" draggable={false} />
                       {isSelected && renderResizeHandles()}
                     </div>
@@ -1780,6 +1861,7 @@ export default function EditPDFPage() {
                 </svg>
               )}
             </div>
+            </div>
           </div>
 
           {/* ── Helper text ── */}
@@ -1801,6 +1883,7 @@ export default function EditPDFPage() {
                 if (editingText) commitTextBox(editingText);
                 setFiles([]);
                 setPageImages([]);
+                setPageSizes([]);
                 setPdfBytes(null);
                 setElements([]);
                 setSelectedElement(null);
