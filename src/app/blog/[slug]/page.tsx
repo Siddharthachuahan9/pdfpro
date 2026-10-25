@@ -3,8 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { blogPosts, getBlogPost } from "@/lib/blog-data";
 import { getArticleSchema, getBreadcrumbSchema } from "@/lib/schemas";
-import { ArrowLeft, Clock, Tag, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { toolCount } from "@/components/layout/tool-groups";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -52,78 +51,6 @@ export default async function BlogPostPage({ params }: Props) {
     { name: post.title, url: `https://pdfkit.pro/blog/${slug}` },
   ]);
 
-  // Simple markdown-ish rendering
-  const renderContent = (content: string) => {
-    return content.split("\n").map((line, i) => {
-      if (line.startsWith("## ")) {
-        return <h2 key={i} className="text-2xl font-bold mt-8 mb-4">{line.slice(3)}</h2>;
-      }
-      if (line.startsWith("### ")) {
-        return <h3 key={i} className="text-lg font-semibold mt-6 mb-3">{line.slice(4)}</h3>;
-      }
-      if (line.startsWith("- **")) {
-        const match = line.match(/^- \*\*(.+?)\*\*:?\s*(.*)/);
-        if (match) {
-          return (
-            <div key={i} className="flex gap-2 ml-4 mb-1.5">
-              <span className="text-primary mt-1">•</span>
-              <p className="text-sm text-muted-foreground"><strong className="text-foreground">{match[1]}</strong>{match[2] ? `: ${match[2]}` : ""}</p>
-            </div>
-          );
-        }
-      }
-      if (line.startsWith("- ")) {
-        return (
-          <div key={i} className="flex gap-2 ml-4 mb-1.5">
-            <span className="text-primary mt-1">•</span>
-            <p className="text-sm text-muted-foreground">{line.slice(2)}</p>
-          </div>
-        );
-      }
-      if (line.match(/^\d+\.\s\*\*/)) {
-        const match = line.match(/^(\d+)\.\s\*\*(.+?)\*\*\s*[-—]\s*(.*)/);
-        if (match) {
-          return (
-            <div key={i} className="flex gap-2 ml-4 mb-1.5">
-              <span className="text-primary font-medium">{match[1]}.</span>
-              <p className="text-sm text-muted-foreground"><strong className="text-foreground">{match[2]}</strong> — {match[3]}</p>
-            </div>
-          );
-        }
-      }
-      if (line.match(/^\d+\.\s/)) {
-        const match = line.match(/^(\d+)\.\s(.*)/);
-        if (match) {
-          return (
-            <div key={i} className="flex gap-2 ml-4 mb-1.5">
-              <span className="text-primary font-medium">{match[1]}.</span>
-              <p className="text-sm text-muted-foreground">{match[2]}</p>
-            </div>
-          );
-        }
-      }
-      if (line.startsWith("**Q:")) {
-        return <p key={i} className="text-sm font-semibold mt-4 mb-1">{line.replace(/\*\*/g, "")}</p>;
-      }
-      if (line.startsWith("**A:") || line.startsWith("A:")) {
-        return <p key={i} className="text-sm text-muted-foreground mb-3 ml-4">{line.replace(/\*\*/g, "")}</p>;
-      }
-      if (line.startsWith("|")) {
-        return null; // Skip markdown tables for simplicity
-      }
-      if (line.trim() === "") {
-        return <div key={i} className="h-3" />;
-      }
-      // Render inline bold
-      const parts = line.split(/\*\*(.+?)\*\*/g);
-      return (
-        <p key={i} className="text-sm text-muted-foreground leading-relaxed mb-2">
-          {parts.map((part, j) => j % 2 === 1 ? <strong key={j} className="text-foreground">{part}</strong> : part)}
-        </p>
-      );
-    });
-  };
-
   const currentIdx = blogPosts.findIndex((p) => p.slug === slug);
   const prevPost = currentIdx > 0 ? blogPosts[currentIdx - 1] : null;
   const nextPost = currentIdx < blogPosts.length - 1 ? blogPosts[currentIdx + 1] : null;
@@ -132,57 +59,77 @@ export default async function BlogPostPage({ params }: Props) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
-      <div className="py-12 md:py-20">
-        <div className="container mx-auto px-4 md:px-6 max-w-3xl">
-          <Link href="/blog">
-            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground mb-6">
-              <ArrowLeft className="h-4 w-4" />
-              All Articles
-            </Button>
+      <div className="wrap">
+        <article className="article">
+          <Link className="back" href="/blog">
+            All guides
           </Link>
+          <h1>{post.title}</h1>
+          <p className="post-meta">
+            {post.category}, {post.readTime}, {post.date}
+          </p>
+          <div className="article__body">{renderContent(post.content)}</div>
 
-          <article>
-            <div className="flex items-center gap-3 mb-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><Tag className="h-3 w-3" />{post.category}</span>
-              <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{post.readTime}</span>
-              <span>{post.date}</span>
-            </div>
-
-            <h1 className="text-3xl md:text-4xl font-bold mb-6">{post.title}</h1>
-
-            <div className="prose-custom">
-              {renderContent(post.content)}
-            </div>
-          </article>
-
-          {/* Navigation */}
-          <div className="mt-12 pt-8 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <nav className="article__nav" aria-label="More guides">
             {prevPost && (
-              <Link href={`/blog/${prevPost.slug}`} className="group rounded-xl border border-border p-4 hover:border-primary/50 transition-all">
-                <span className="text-xs text-muted-foreground">Previous</span>
-                <p className="text-sm font-medium group-hover:text-primary transition-colors mt-1">{prevPost.title}</p>
+              <Link href={`/blog/${prevPost.slug}`}>
+                <span>Previous</span>
+                <strong>{prevPost.title}</strong>
               </Link>
             )}
             {nextPost && (
-              <Link href={`/blog/${nextPost.slug}`} className="group rounded-xl border border-border p-4 hover:border-primary/50 transition-all sm:text-right sm:ml-auto">
-                <span className="text-xs text-muted-foreground">Next</span>
-                <p className="text-sm font-medium group-hover:text-primary transition-colors mt-1">{nextPost.title}</p>
+              <Link className="article__next" href={`/blog/${nextPost.slug}`}>
+                <span>Next</span>
+                <strong>{nextPost.title}</strong>
               </Link>
             )}
-          </div>
-
-          {/* CTA */}
-          <div className="mt-12 glass rounded-2xl p-8 text-center">
-            <h2 className="text-xl font-bold mb-2">Ready to Try These Tools?</h2>
-            <p className="text-sm text-muted-foreground mb-4">All 20+ PDF tools are free to use, with no signup required.</p>
-            <Link href="/tools">
-              <Button className="gap-2">
-                Explore All Tools <ArrowRight className="h-4 w-4" />
-              </Button>
+          </nav>
+          <p style={{ marginTop: 40 }}>
+            <Link className="back" href="/tools">
+              See all {toolCount} tools
             </Link>
-          </div>
-        </div>
+          </p>
+        </article>
       </div>
     </>
   );
+}
+
+/** Inline **bold** inside a line. */
+function inline(text: string): React.ReactNode[] {
+  return text.split(/\*\*(.+?)\*\*/g).map((part, j) => (j % 2 === 1 ? <strong key={j}>{part}</strong> : part));
+}
+
+/** The posts are stored as light markdown; this turns them into headings, paragraphs and real lists. */
+function renderContent(content: string): React.ReactNode[] {
+  const out: React.ReactNode[] = [];
+  let list: { ordered: boolean; items: React.ReactNode[] } | null = null;
+  const flush = () => {
+    if (!list) return;
+    const key = `l${out.length}`;
+    out.push(list.ordered ? <ol key={key}>{list.items}</ol> : <ul key={key}>{list.items}</ul>);
+    list = null;
+  };
+  content.split("\n").forEach((raw, i) => {
+    const line = raw.trimEnd();
+    const bullet = line.match(/^- (.*)/);
+    const numbered = line.match(/^\d+\.\s(.*)/);
+    if (bullet || numbered) {
+      const ordered = !!numbered;
+      if (!list || list.ordered !== ordered) {
+        flush();
+        list = { ordered, items: [] };
+      }
+      list.items.push(<li key={i}>{inline((bullet ?? numbered)![1])}</li>);
+      return;
+    }
+    flush();
+    if (line.startsWith("|") || line.trim() === "") return;
+    if (line.startsWith("## ")) out.push(<h2 key={i}>{line.slice(3)}</h2>);
+    else if (line.startsWith("### ")) out.push(<h3 key={i}>{line.slice(4)}</h3>);
+    else if (line.startsWith("**Q:")) out.push(<h3 key={i}>{line.replace(/\*\*/g, "")}</h3>);
+    else out.push(<p key={i}>{inline(line.replace(/^\*\*A:\*\*\s*/, "").replace(/^A:\s*/, ""))}</p>);
+  });
+  flush();
+  return out;
 }

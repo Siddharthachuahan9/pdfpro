@@ -1,90 +1,79 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Terms of Service - pdfkit.pro",
-  description: "Terms of Service for pdfkit.pro. Free browser-based PDF tools with no data collection.",
-  alternates: { canonical: "https://pdfkit.pro/terms" },
+  title: "Terms of use",
+  description: "The terms for using pdfkit.pro, a set of free PDF tools that run in your browser.",
+  alternates: { canonical: "https://www.pdfkit.pro/terms" },
 };
+
+const sections: { h: string; body: React.ReactNode }[] = [
+  {
+    h: "Using the site",
+    body: "By using pdfkit.pro you agree to these terms. If you do not agree, please do not use the site.",
+  },
+  {
+    h: "What the service is",
+    body: "pdfkit.pro offers free tools for working with PDF files: merging, splitting, converting, editing and similar jobs. The tools run in your web browser. Your files are not uploaded to a server.",
+  },
+  {
+    h: "No account, no charge",
+    body: "The tools are free and need no registration. There are no paid tiers.",
+  },
+  {
+    h: "Privacy",
+    body: (
+      <>
+        Your files stay on your device. The site counts page views with Vercel Analytics and measures performance
+        with Vercel Speed Insights, without cookies. The <Link href="/privacy">privacy page</Link> has the details.
+      </>
+    ),
+  },
+  {
+    h: "Your files are yours",
+    body: "You keep all rights to the files you open with the tools. pdfkit.pro claims no rights over them. The pdfkit.pro name and site design belong to pdfkit.pro.",
+  },
+  {
+    h: "No warranty",
+    body: "The tools are provided as they are, without any warranty. Results depend on your browser, your device and the files themselves, and a tool may get a file wrong. Keep your originals and check the result before you rely on it.",
+  },
+  {
+    h: "Limitation of liability",
+    body: "pdfkit.pro is not liable for any loss arising from using, or not being able to use, the tools, including lost or damaged files and any indirect or consequential loss.",
+  },
+  {
+    h: "Fair use",
+    body: "Do not use the tools for anything unlawful or in a way that could harm the site. You are responsible for having the right to work with the files you open.",
+  },
+  {
+    h: "Changes",
+    body: "These terms may change. Using the site after a change means you accept the new terms.",
+  },
+  {
+    h: "Contact",
+    body: (
+      <>
+        pdfkit.pro is run by Siddhartha Chauhan. You can reach him through <a href="https://sidstack.in">sidstack.in</a>.
+      </>
+    ),
+  },
+];
 
 export default function TermsPage() {
   return (
-    <div className="container mx-auto px-4 md:px-6 py-16 max-w-3xl">
-      <h1 className="text-3xl font-bold mb-8">Terms of Service</h1>
-
-      <div className="space-y-6 text-sm text-muted-foreground leading-relaxed">
-        <p>
-          <strong className="text-foreground">Last updated:</strong> January 2025
-        </p>
-
-        <section>
-          <h2 className="text-lg font-semibold text-foreground mb-2">1. Acceptance of Terms</h2>
-          <p>
-            By accessing and using pdfkit.pro, you agree to these Terms of Service. If you do not agree, please do not use our services.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold text-foreground mb-2">2. Service Description</h2>
-          <p>
-            pdfkit.pro provides free browser-based PDF tools including merging, splitting, compressing, converting, editing, and other PDF operations. All file processing occurs locally in your web browser. No files are uploaded to our servers.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold text-foreground mb-2">3. No Account Required</h2>
-          <p>
-            Our tools are available without registration, login, or any form of account creation. There are no premium tiers or paid features.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold text-foreground mb-2">4. Privacy & Data</h2>
-          <p>
-            We do not collect, store, or transmit any files you process using our tools. All PDF processing happens entirely within your browser using client-side JavaScript. We do not use cookies for tracking. See our <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a> for full details.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold text-foreground mb-2">5. Intellectual Property</h2>
-          <p>
-            You retain all rights to the files you process using our tools. pdfkit.pro does not claim any ownership or rights over your content. The pdfkit.pro name, logo, and website design are the property of pdfkit.pro.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold text-foreground mb-2">6. Disclaimer of Warranties</h2>
-          <p>
-            Our tools are provided &quot;as is&quot; without warranties of any kind. While we strive for accuracy and reliability, we cannot guarantee that the tools will be error-free or uninterrupted. Results may vary depending on your browser, device, and the PDF files being processed.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold text-foreground mb-2">7. Limitation of Liability</h2>
-          <p>
-            pdfkit.pro shall not be liable for any damages arising from the use or inability to use our tools, including but not limited to data loss, file corruption, or any indirect, incidental, or consequential damages.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold text-foreground mb-2">8. Acceptable Use</h2>
-          <p>
-            You agree not to use our tools for any unlawful purpose or in any way that could damage, disable, or impair the website. You are solely responsible for ensuring you have the right to process the files you upload.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold text-foreground mb-2">9. Changes to Terms</h2>
-          <p>
-            We may update these terms from time to time. Continued use of pdfkit.pro after changes constitutes acceptance of the new terms.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold text-foreground mb-2">10. Contact</h2>
-          <p>
-            If you have questions about these terms, please reach out through our website.
-          </p>
-        </section>
+    <div className="wrap doc">
+      <div className="doc__head">
+        <h1>Terms of use</h1>
+        <p>Plain terms for a free set of browser tools.</p>
+        <p className="doc__meta">Last updated 25 October 2026</p>
+      </div>
+      <div className="doc__body">
+        {sections.map((s, i) => (
+          <section key={s.h} aria-labelledby={`t-${i}`}>
+            <h2 id={`t-${i}`}>{s.h}</h2>
+            <p>{s.body}</p>
+          </section>
+        ))}
       </div>
     </div>
   );
