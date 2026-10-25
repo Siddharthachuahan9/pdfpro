@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { MessageSquareText, Send, FileText, Loader2, Sparkles, Copy, Check, Trash2 } from "lucide-react";
+import { MessageSquareText, Send, FileText, Search, Copy, Check, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
-import { extractTextFromPDF } from "@/lib/pdf/pdf-render";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ToolSEOContent } from "@/components/seo/tool-seo-content";
@@ -23,23 +22,18 @@ interface PageContent {
   text: string;
 }
 
-function searchInPages(pages: PageContent[], query: string): { pageNum: number; snippet: string }[] {
-  const q = query.toLowerCase();
-  const results: { pageNum: number; snippet: string }[] = [];
+let messageSeq = 0;
+function makeMessage(role: Message["role"], content: string): Message {
+  messageSeq += 1;
+  return { id: `${role}-${messageSeq}`, role, content, timestamp: new Date() };
+}
 
-  for (const page of pages) {
-    const lower = page.text.toLowerCase();
-    const idx = lower.indexOf(q);
-    if (idx !== -1) {
-      const start = Math.max(0, idx - 80);
-      const end = Math.min(page.text.length, idx + q.length + 80);
-      let snippet = page.text.slice(start, end).trim();
-      if (start > 0) snippet = "..." + snippet;
-      if (end < page.text.length) snippet = snippet + "...";
-      results.push({ pageNum: page.pageNum, snippet });
-    }
-  }
-  return results;
+/* Message text comes partly from the PDF: escape it before adding our markup */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function inlineMarkup(s: string): string {
+  return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|\s)_(.+?)_(?=\s|$)/g, "$1<em>$2</em>");
 }
 
 function generateAnswer(pages: PageContent[], question: string): string {
@@ -62,10 +56,10 @@ function generateAnswer(pages: PageContent[], question: string): string {
     return `This PDF contains approximately **${totalChars.toLocaleString()} characters**.`;
   }
 
-  if (q.match(/summarize|summary|what is this|what's this|about this|overview|describe/)) {
+  if (q.match(/first page|summarize|summary|what is this|what's this|about this|overview|describe/)) {
     const firstPage = pages[0]?.text || "";
     const preview = firstPage.slice(0, 500).trim();
-    let response = `**Document Summary**\n\nThis is a ${totalPages}-page PDF with approximately ${totalWords.toLocaleString()} words.\n\n`;
+    let response = `**Document overview**\n\nThis is a ${totalPages}-page PDF with approximately ${totalWords.toLocaleString()} words. This tool searches the text; it cannot write a summary, so here is the start of the document.\n\n`;
     response += `**First page preview:**\n\n> ${preview}${firstPage.length > 500 ? "..." : ""}`;
     return response;
   }
@@ -116,7 +110,7 @@ function generateAnswer(pages: PageContent[], question: string): string {
     .filter((w) => w.length > 2 && !["what", "where", "when", "how", "does", "the", "this", "that", "find", "search", "look", "for", "about", "with", "from", "have", "has", "are", "was", "were", "been", "can", "could", "would", "should"].includes(w));
 
   if (keywords.length === 0) {
-    return "I can help you explore this PDF! Try asking:\n\n- **\"Summarize this document\"**\n- **\"How many pages?\"**\n- **\"What's on page 3?\"**\n- **\"Find [keyword]\"**\n- Or search for any specific text or topic";
+    return "Type a word or phrase to search for. You can also ask:\n\n- **\"Show the first page\"**\n- **\"How many pages?\"**\n- **\"What's on page 3?\"**\n- **\"Find [keyword]\"**\n- Or search for any specific text or topic";
   }
 
   // Search for each keyword
@@ -157,7 +151,7 @@ function generateAnswer(pages: PageContent[], question: string): string {
   allResults.sort((a, b) => b.matchCount - a.matchCount);
 
   if (allResults.length === 0) {
-    return `I couldn't find anything related to "${keywords.join(" ")}" in this document.\n\nTry different keywords or ask me to summarize the document.`;
+    return `I couldn't find anything related to "${keywords.join(" ")}" in this document.\n\nTry different keywords. The search matches words exactly as they appear in the PDF.`;
   }
 
   const topResults = allResults.slice(0, 3);
@@ -185,13 +179,14 @@ export default function ChatWithPDFPage() {
   const [pages, setPages] = useState<PageContent[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [thinking, setThinking] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  /* Scroll only the message list, never the whole page */
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = messagesEndRef.current?.parentElement;
+    if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -222,6 +217,7 @@ export default function ChatWithPDFPage() {
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const text = content.items.map((item: any) => item.str).join(" ");
           pageContents.push({ pageNum: i, text });
           setProgress(30 + Math.round((i / pdf.numPages) * 60));
@@ -240,7 +236,10 @@ export default function ChatWithPDFPage() {
           {
             id: "welcome",
             role: "assistant",
-            content: `I've loaded your PDF! Here's what I found:\n\n- **Pages:** ${pdf.numPages}\n- **Words:** ~${totalWords.toLocaleString()}\n\nAsk me anything about this document. For example:\n- "Summarize this document"\n- "What's on page 2?"\n- "Find [any keyword or topic]"\n- "How many pages?"`,
+            content:
+              totalWords === 0
+                ? `This PDF has ${pdf.numPages} page${pdf.numPages === 1 ? "" : "s"} but no text layer, so there is nothing to search. It is probably a scan. Use the Extract Text tool, which can read scanned pages with OCR.`
+                : `Your PDF is loaded:\n\n- **Pages:** ${pdf.numPages}\n- **Words:** ~${totalWords.toLocaleString()}\n\nType a word or question and I'll find the matching passages and their page numbers. This is keyword search over the PDF's text, not an AI model. For example:\n- "What's on page 2?"\n- "Find [any keyword]"\n- "How many pages?"`,
             timestamp: new Date(),
           },
         ]);
@@ -260,35 +259,20 @@ export default function ChatWithPDFPage() {
     }
   }, []);
 
-  const handleSend = async () => {
-    const trimmed = input.trim();
+  const handleSend = (preset?: string) => {
+    const trimmed = (preset ?? input).trim();
     if (!trimmed || pages.length === 0) return;
 
-    const userMsg: Message = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: trimmed,
-      timestamp: new Date(),
-    };
+    const userMsg = makeMessage("user", trimmed);
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    setThinking(true);
-
-    // Small delay for natural feel
-    await new Promise((resolve) => setTimeout(resolve, 400 + Math.random() * 600));
 
     const answer = generateAnswer(pages, trimmed);
 
-    const assistantMsg: Message = {
-      id: `assistant-${Date.now()}`,
-      role: "assistant",
-      content: answer,
-      timestamp: new Date(),
-    };
+    const assistantMsg = makeMessage("assistant", answer);
 
     setMessages((prev) => [...prev, assistantMsg]);
-    setThinking(false);
     inputRef.current?.focus();
   };
 
@@ -312,7 +296,7 @@ export default function ChatWithPDFPage() {
         {
           id: "welcome-reset",
           role: "assistant",
-          content: `Chat cleared! Your PDF is still loaded (${pages.length} pages, ~${totalWords.toLocaleString()} words).\n\nAsk me anything!`,
+          content: `Chat cleared. Your PDF is still loaded (${pages.length} pages, ~${totalWords.toLocaleString()} words).\n\nType a word or phrase to search.`,
           timestamp: new Date(),
         },
       ]);
@@ -320,16 +304,16 @@ export default function ChatWithPDFPage() {
   };
 
   const suggestedQuestions = [
-    "Summarize this document",
+    "Show the first page",
     "How many pages?",
     "What's on page 1?",
-    "Find the main topic",
+    "Find headings",
   ];
 
   return (
     <ToolLayout
       title="Chat with PDF"
-      description="Ask questions about your PDF and get instant answers"
+      description="Search your PDF by keyword and see matching passages with page numbers"
       icon={MessageSquareText}
       color="from-violet-500 to-indigo-600"
       processing={processing}
@@ -419,8 +403,8 @@ export default function ChatWithPDFPage() {
                       {msg.role === "assistant" ? (
                         <div className="space-y-1">
                           <div className="flex items-center gap-1.5 mb-1.5">
-                            <Sparkles className="h-3.5 w-3.5 text-primary" />
-                            <span className="text-xs font-medium text-primary">pdfkit.pro</span>
+                            <Search className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-xs font-medium text-primary">Search result</span>
                           </div>
                           <div className="prose prose-sm dark:prose-invert max-w-none [&_strong]:text-foreground [&_blockquote]:border-primary/30 [&_blockquote]:bg-secondary/50 [&_blockquote]:rounded [&_blockquote]:py-1 [&_blockquote]:px-3">
                             {msg.content.split("\n").map((line, i) => {
@@ -437,21 +421,21 @@ export default function ChatWithPDFPage() {
                                     <span className="text-primary mt-0.5">•</span>
                                     <span
                                       dangerouslySetInnerHTML={{
-                                        __html: line.slice(2).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/_(.+?)_/g, "<em>$1</em>"),
+                                        __html: inlineMarkup(line.slice(2)),
                                       }}
                                     />
                                   </div>
                                 );
                               }
                               if (line.startsWith("**") && line.endsWith("**")) {
-                                return <p key={i} className="font-semibold mt-2" dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.+?)\*\*/g, "$1") }} />;
+                                return <p key={i} className="font-semibold mt-2">{line.replace(/\*\*(.+?)\*\*/g, "$1")}</p>;
                               }
                               return (
                                 <p
                                   key={i}
                                   className={line === "" ? "h-2" : ""}
                                   dangerouslySetInnerHTML={{
-                                    __html: line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/_(.+?)_/g, "<em>$1</em>"),
+                                    __html: inlineMarkup(line),
                                   }}
                                 />
                               );
@@ -476,22 +460,6 @@ export default function ChatWithPDFPage() {
                 ))}
               </AnimatePresence>
 
-              {/* Thinking indicator */}
-              {thinking && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex justify-start"
-                >
-                  <div className="bg-secondary/70 border border-border rounded-2xl rounded-bl-md px-4 py-3">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Analyzing your PDF...
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
               <div ref={messagesEndRef} />
             </div>
 
@@ -502,12 +470,7 @@ export default function ChatWithPDFPage() {
                   {suggestedQuestions.map((q) => (
                     <button
                       key={q}
-                      onClick={() => {
-                        setInput(q);
-                        setTimeout(() => {
-                          handleSend();
-                        }, 50);
-                      }}
+                      onClick={() => handleSend(q)}
                       className="text-xs px-3 py-1.5 rounded-full bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border transition-colors"
                     >
                       {q}
@@ -525,13 +488,13 @@ export default function ChatWithPDFPage() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask anything about your PDF..."
-                  disabled={thinking}
+                  placeholder="Search for a word or phrase..."
+                  aria-label="Search the PDF" 
                   className="flex-1 h-10 bg-secondary/30"
                 />
                 <Button
-                  onClick={handleSend}
-                  disabled={!input.trim() || thinking}
+                  onClick={() => handleSend()}
+                  disabled={!input.trim()}
                   size="icon"
                   className="h-10 w-10 shrink-0"
                 >
@@ -539,7 +502,7 @@ export default function ChatWithPDFPage() {
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
-                All processing happens locally in your browser. Your PDF is never uploaded.
+                Keyword search runs in your browser. Your PDF is never uploaded.
               </p>
             </div>
           </div>
