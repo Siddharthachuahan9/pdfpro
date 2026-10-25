@@ -1,81 +1,63 @@
-"use client";
+import type { Metadata } from "next";
 
-import { motion } from "framer-motion";
-import { Shield, Server, Eye, Cookie, Database, FileText } from "lucide-react";
+export const metadata: Metadata = {
+  title: "Privacy",
+  description: "Your files are processed in your browser and never uploaded. The site uses Vercel Analytics and Speed Insights, without cookies.",
+  alternates: { canonical: "https://pdfkit.pro/privacy" },
+};
 
 export default function PrivacyPage() {
   return (
-    <div className="relative py-12 md:py-20">
-      <div className="container mx-auto px-4 md:px-6 max-w-3xl">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-12"
-        >
-          <h1 className="text-3xl md:text-5xl font-bold mb-4">Privacy Policy</h1>
-          <p className="text-muted-foreground text-lg">
-            Your privacy matters. Here is exactly how we handle your data.
+    <div className="wrap doc">
+      <div className="doc__head">
+        <h1>Privacy</h1>
+        <p>Your files are processed in your browser and never uploaded.</p>
+        <p className="doc__meta">Last updated 25 October 2026</p>
+      </div>
+
+      <div className="doc__body">
+        <section aria-labelledby="p-files">
+          <h2 id="p-files">Your files</h2>
+          <p>
+            Every tool on pdfkit.pro opens your files inside your browser tab and creates the result there. Your
+            files are processed in the browser and never uploaded: they are not sent to pdfkit.pro or to anyone
+            else, and nothing is stored on a server. When you close the tab, the copies the page held in memory are
+            gone.
           </p>
-        </motion.div>
+        </section>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="space-y-8"
-        >
-          {[
-            {
-              icon: FileText,
-              title: "Your Files",
-              content: "All PDF processing happens entirely in your browser. Your files are never uploaded to any server. They stay on your device at all times. When you close the tab, all file data is removed from memory.",
-            },
-            {
-              icon: Server,
-              title: "No Server Processing",
-              content: "We do not have any servers that process your files. All tools use client-side JavaScript libraries (pdf-lib, PDF.js, jsPDF) that run entirely in your browser. There is no backend.",
-            },
-            {
-              icon: Eye,
-              title: "No Tracking",
-              content: "We do not use any analytics, tracking pixels, or third-party scripts. We do not track your usage, your files, or your behavior. We do not use Google Analytics or any similar service.",
-            },
-            {
-              icon: Cookie,
-              title: "No Cookies",
-              content: "We do not set any cookies. The only data stored locally is your theme preference (light/dark mode) using localStorage, which never leaves your device.",
-            },
-            {
-              icon: Database,
-              title: "No Data Collection",
-              content: "We do not collect, store, or process any personal data. We do not require registration, email addresses, or any personal information. The site works completely anonymously.",
-            },
-            {
-              icon: Shield,
-              title: "Security",
-              content: "Since all processing is local, your documents are as secure as your device. We recommend keeping your browser up to date for the latest security patches.",
-            },
-          ].map((section) => (
-            <div key={section.title} className="glass rounded-xl p-6">
-              <div className="flex items-start gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <section.icon className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold mb-2">{section.title}</h2>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{section.content}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+        <section aria-labelledby="p-analytics">
+          <h2 id="p-analytics">Page views and performance</h2>
+          <p>
+            The site uses Vercel Analytics to count page views and Vercel Speed Insights to measure how quickly pages
+            load. They record the page address, the site you came from, an approximate location (country and city),
+            and your browser, operating system and device type. Neither sets cookies; their scripts never read or
+            write one. Vercel tells visits apart with a hash of the request that is discarded after 24 hours, so you
+            are not followed from day to day or across other sites.
+          </p>
+          <p>They never see your files or anything inside them.</p>
+        </section>
 
-          <div className="text-center pt-8">
-            <p className="text-sm text-muted-foreground">
-              Last updated: February 2026
-            </p>
-          </div>
-        </motion.div>
+        <section aria-labelledby="p-device">
+          <h2 id="p-device">What stays on your device</h2>
+          <p>
+            Your choice of light or dark theme is saved in your browser&apos;s local storage. It never leaves your
+            device.
+          </p>
+        </section>
+
+        <section aria-labelledby="p-account">
+          <h2 id="p-account">No accounts</h2>
+          <p>There is no sign-up, so pdfkit.pro holds no names, email addresses or passwords.</p>
+        </section>
+
+        <section aria-labelledby="p-who" className="doc__panel">
+          <h2 id="p-who">Who is responsible</h2>
+          <p>
+            pdfkit.pro is run by Siddhartha Chauhan. You can reach him through{" "}
+            <a href="https://sidstack.in">sidstack.in</a>.
+          </p>
+        </section>
       </div>
     </div>
   );
