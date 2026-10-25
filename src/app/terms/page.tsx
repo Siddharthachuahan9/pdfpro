@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Terms of use",
   description: "The terms for using pdfkit.pro, a set of free PDF tools that run in your browser.",
-  alternates: { canonical: "https://pdfkit.pro/terms" },
+  alternates: { canonical: "https://www.pdfkit.pro/terms" },
 };
 
 const sections: { h: string; body: React.ReactNode }[] = [
