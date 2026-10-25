@@ -1,8 +1,8 @@
+import { OG_IMAGE, SITE_URL } from "@/lib/site";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { blogPosts } from "@/lib/blog-data";
 import { ArrowRight, Clock, Tag } from "lucide-react";
-import { OG_IMAGE, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Blog - PDF Tips, Guides & Tutorials",

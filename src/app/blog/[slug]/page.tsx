@@ -179,7 +179,7 @@ export default async function BlogPostPage({ params }: Props) {
           {/* CTA */}
           <div className="mt-12 glass rounded-2xl p-8 text-center">
             <h2 className="text-xl font-bold mb-2">Ready to Try These Tools?</h2>
-            <p className="text-sm text-muted-foreground mb-4">All 20 PDF tools are free to use, with no signup required.</p>
+            <p className="text-sm text-muted-foreground mb-4">All 20+ PDF tools are free to use, with no signup required.</p>
             <Link href="/tools">
               <Button className="gap-2">
                 Explore All Tools <ArrowRight className="h-4 w-4" />
