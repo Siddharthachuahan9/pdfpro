@@ -54,7 +54,7 @@ export const tools: Tool[] = [
   {
     id: "compress",
     name: "Compress PDF",
-    description: "Reduce PDF file size while keeping quality",
+    description: "Shrink image-heavy PDFs by recompressing images",
     icon: Minimize2,
     href: "/tools/compress",
     category: "Optimize",
@@ -99,7 +99,7 @@ export const tools: Tool[] = [
   {
     id: "pdf-to-word",
     name: "PDF to Word",
-    description: "Extract text from PDF to editable format",
+    description: "Extract PDF text into an editable Word document",
     icon: FileOutput,
     href: "/tools/pdf-to-word",
     category: "Convert",
@@ -108,7 +108,7 @@ export const tools: Tool[] = [
   {
     id: "extract-text",
     name: "Extract Text",
-    description: "Extract all text content from a PDF",
+    description: "Extract all text from a PDF, with OCR for scans",
     icon: Type,
     href: "/tools/extract-text",
     category: "Extract",
@@ -171,7 +171,7 @@ export const tools: Tool[] = [
   {
     id: "protect-pdf",
     name: "Protect PDF",
-    description: "Add password protection to your PDF",
+    description: "Password-protect your PDF with AES-256 encryption",
     icon: Lock,
     href: "/tools/protect-pdf",
     category: "Security",
@@ -180,7 +180,7 @@ export const tools: Tool[] = [
   {
     id: "unlock-pdf",
     name: "Unlock PDF",
-    description: "Remove password from a protected PDF",
+    description: "Remove the password from a PDF you can open",
     icon: Unlock,
     href: "/tools/unlock-pdf",
     category: "Security",
@@ -198,10 +198,10 @@ export const tools: Tool[] = [
   {
     id: "chat-with-pdf",
     name: "Chat with PDF",
-    description: "Ask questions about your PDF and get instant answers",
+    description: "Ask questions and find answers by keyword search in your PDF's text",
     icon: MessageSquareText,
     href: "/tools/chat-with-pdf",
-    category: "AI",
+    category: "Extract",
     color: "from-violet-500 to-indigo-600",
   },
   {

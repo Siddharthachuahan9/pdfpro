@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToolLayout } from "@/components/shared/tool-layout";
 import { FileUpload } from "@/components/shared/file-upload";
-import { protectPDF } from "@/lib/pdf/pdf-utils";
+import { encryptPDF, ENCRYPTION_LABEL } from "@/lib/pdf/encryption";
 import { downloadPDF } from "@/lib/utils";
 import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
@@ -16,27 +16,33 @@ export default function ProtectPDFPage() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<Uint8Array | null>(null);
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const mismatch = confirm.length > 0 && password !== confirm;
+  const canProtect = files.length > 0 && password.length > 0 && password === confirm && !processing;
 
   const handleFilesSelected = useCallback((newFiles: File[]) => {
     setFiles(newFiles);
     setResult(null);
+    setError(null);
   }, []);
 
   const handleProtect = async () => {
-    if (files.length === 0 || !password) return;
+    if (!canProtect) return;
     setProcessing(true);
-    setProgress(20);
+    setError(null);
+    setResult(null);
+    setProgress(30);
 
     try {
-      setProgress(50);
-      const data = await protectPDF(files[0]);
-      setProgress(90);
-      setResult(data);
+      const data = await encryptPDF(files[0], password);
       setProgress(100);
+      setResult(data);
     } catch (err) {
       console.error("Protect failed:", err);
-      alert("Failed to protect PDF.");
+      setError(err instanceof Error ? err.message : "Failed to protect PDF.");
     } finally {
       setProcessing(false);
     }
@@ -44,7 +50,8 @@ export default function ProtectPDFPage() {
 
   const handleDownload = () => {
     if (!result) return;
-    downloadPDF(result, "protected.pdf");
+    const base = files[0]?.name.replace(/\.pdf$/i, "") || "document";
+    downloadPDF(result, `${base}-protected.pdf`);
   };
 
   return (
@@ -61,36 +68,61 @@ export default function ProtectPDFPage() {
           accept=".pdf"
           onFilesSelected={handleFilesSelected}
           files={files}
-          onRemoveFile={() => { setFiles([]); setResult(null); }}
+          onRemoveFile={() => { setFiles([]); setResult(null); setError(null); }}
           label="Upload PDF"
           description="Drop a PDF file here"
         />
 
         {files.length > 0 && (
-          <div className="p-4 rounded-xl border border-border bg-secondary/20">
-            <label className="text-sm font-medium mb-1.5 block">Password</label>
-            <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+          <div className="p-4 rounded-xl border border-border bg-secondary/20 space-y-3">
+            <div>
+              <label htmlFor="pdf-password" className="text-sm font-medium mb-1.5 block">Password</label>
+              <div className="relative">
+                <Input
+                  id="pdf-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setResult(null); }}
+                  placeholder="Enter password"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Note: Browser-based encryption has limitations. For maximum security, use desktop tools.
+            <div>
+              <label htmlFor="pdf-password-confirm" className="text-sm font-medium mb-1.5 block">Confirm password</label>
+              <Input
+                id="pdf-password-confirm"
+                type={showPassword ? "text" : "password"}
+                value={confirm}
+                onChange={(e) => { setConfirm(e.target.value); setResult(null); }}
+                placeholder="Type the password again"
+                autoComplete="new-password"
+                aria-invalid={mismatch}
+              />
+              {mismatch && (
+                <p className="text-xs text-destructive mt-1.5" role="alert">Passwords don&apos;t match.</p>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              The PDF is encrypted with {ENCRYPTION_LABEL} in your browser. Anyone opening it will need this
+              password. There is no way to recover the file if you forget it.
             </p>
           </div>
         )}
 
-        <Button onClick={handleProtect} disabled={files.length === 0 || !password || processing} className="w-full" size="lg">
+        {error && (
+          <p className="text-sm text-destructive text-center" role="alert">{error}</p>
+        )}
+
+        <Button onClick={handleProtect} disabled={!canProtect} className="w-full" size="lg">
           {processing ? "Protecting..." : "Protect PDF"}
         </Button>
 

@@ -94,6 +94,7 @@ export default function PDFToJPGPage() {
                   className="group relative rounded-lg overflow-hidden border border-border cursor-pointer"
                   onClick={() => downloadImage(img)}
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={img.data}
                     alt={img.filename}

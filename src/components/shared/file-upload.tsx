@@ -28,17 +28,49 @@ export function FileUpload({
   description = "Drag and drop or click to browse",
 }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [rejected, setRejected] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  /* Same matching rules as the <input accept> attribute (".pdf", "image/png", "image/*") */
+  const matchesAccept = useCallback(
+    (file: File) => {
+      const rules = accept.split(",").map((r) => r.trim().toLowerCase()).filter(Boolean);
+      if (rules.length === 0) return true;
+      const name = file.name.toLowerCase();
+      const type = (file.type || "").toLowerCase();
+      return rules.some((r) =>
+        r.startsWith(".")
+          ? name.endsWith(r)
+          : r.endsWith("/*")
+            ? type.startsWith(r.slice(0, -1))
+            : type === r
+      );
+    },
+    [accept]
+  );
 
   const handleFiles = useCallback(
     (fileList: FileList | null) => {
       if (!fileList) return;
-      const arr = Array.from(fileList).filter((f) => f.size <= maxSize);
+      const all = Array.from(fileList);
+      const problems: string[] = [];
+      const arr = all.filter((f) => {
+        if (f.size > maxSize) {
+          problems.push(`${f.name} is ${formatFileSize(f.size)}, over the ${formatFileSize(maxSize)} limit.`);
+          return false;
+        }
+        if (!matchesAccept(f)) {
+          problems.push(`${f.name} is not a supported file type (${accept}).`);
+          return false;
+        }
+        return true;
+      });
+      setRejected(problems);
       if (arr.length > 0) {
         onFilesSelected(multiple ? [...files, ...arr] : arr);
       }
     },
-    [files, maxSize, multiple, onFilesSelected]
+    [files, maxSize, multiple, onFilesSelected, matchesAccept, accept]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -80,7 +112,11 @@ export function FileUpload({
           type="file"
           accept={accept}
           multiple={multiple}
-          onChange={(e) => handleFiles(e.target.files)}
+          onChange={(e) => {
+            handleFiles(e.target.files);
+            /* Allow picking the same file again after removing it */
+            e.target.value = "";
+          }}
           className="hidden"
         />
 
@@ -96,6 +132,14 @@ export function FileUpload({
           Max {formatFileSize(maxSize)} per file
         </p>
       </div>
+
+      {rejected.length > 0 && (
+        <div role="alert" className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          {rejected.map((msg) => (
+            <p key={msg}>{msg}</p>
+          ))}
+        </div>
+      )}
 
       {/* File list */}
       <AnimatePresence>

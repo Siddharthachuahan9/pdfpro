@@ -12,9 +12,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <JsonLd data={getToolFAQSchema(seo.faqs)} />
       <JsonLd data={getHowToSchema(seo.h1, seo.metaDescription, seo.howToSteps)} />
       <JsonLd data={getBreadcrumbSchema([
-        { name: "Home", url: "https://pdfkit.pro" },
-        { name: "Tools", url: "https://pdfkit.pro/tools" },
-        { name: "Crop PDF", url: "https://pdfkit.pro/tools/crop-pdf" },
+        { name: "Home", url: "https://www.pdfkit.pro" },
+        { name: "Tools", url: "https://www.pdfkit.pro/tools" },
+        { name: "Crop PDF", url: "https://www.pdfkit.pro/tools/crop-pdf" },
       ])} />
       {children}
     </>

@@ -25,39 +25,15 @@ export default function WordToPDFPage() {
     setProgress(20);
 
     try {
-      const mammoth = await import("mammoth");
-      const arrayBuffer = await files[0].arrayBuffer();
+      const { docxToPdf } = await import("@/lib/docx-to-pdf");
       setProgress(40);
-      const { value: html } = await mammoth.convertToHtml({ arrayBuffer });
-      setProgress(60);
-
-      const { default: jsPDF } = await import("jspdf");
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = html;
-      const textContent = tempDiv.textContent || tempDiv.innerText || "";
-
-      const lines = doc.splitTextToSize(textContent, 170);
-      let y = 20;
-      const lineHeight = 6;
-
-      for (const line of lines) {
-        if (y > 270) {
-          doc.addPage();
-          y = 20;
-        }
-        doc.text(line, 20, y);
-        y += lineHeight;
-      }
-
+      const blob = await docxToPdf(files[0]);
       setProgress(90);
-      const blob = doc.output("blob");
       setResult(blob);
       setProgress(100);
     } catch (err) {
       console.error("Conversion failed:", err);
-      alert("Failed to convert Word to PDF.");
+      alert("Could not convert this file. Only .docx (Word 2007 or newer) files are supported.");
     } finally {
       setProcessing(false);
     }
@@ -65,13 +41,13 @@ export default function WordToPDFPage() {
 
   const handleDownload = () => {
     if (!result) return;
-    downloadBlob(result, "converted.pdf");
+    downloadBlob(result, `${files[0]?.name.replace(/\.docx$/i, "") || "document"}.pdf`);
   };
 
   return (
     <ToolLayout
       title="Word to PDF"
-      description="Convert Word documents to PDF format"
+      description="Convert Word (.docx) documents to PDF, keeping headings, paragraphs, lists and images"
       icon={FileText}
       color="from-blue-600 to-indigo-600"
       processing={processing}
@@ -79,7 +55,7 @@ export default function WordToPDFPage() {
     >
       <div className="space-y-6">
         <FileUpload
-          accept=".docx,.doc"
+          accept=".docx"
           onFilesSelected={handleFilesSelected}
           files={files}
           onRemoveFile={() => {

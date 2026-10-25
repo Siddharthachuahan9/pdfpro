@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { OG_IMAGE } from "@/lib/site";
 import { blogPosts, getBlogPost } from "@/lib/blog-data";
 import { getArticleSchema, getBreadcrumbSchema } from "@/lib/schemas";
 import { ArrowLeft, Clock, Tag, ArrowRight } from "lucide-react";
@@ -23,19 +24,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: post.metaTitle,
     description: post.metaDescription,
     openGraph: {
-      title: post.metaTitle,
+      title: `${post.metaTitle} | pdfkit.pro`,
+      url: `https://www.pdfkit.pro/blog/${slug}`,
+      siteName: "pdfkit.pro",
+      images: [OG_IMAGE],
       description: post.metaDescription,
       type: "article",
       publishedTime: post.date,
-      authors: ["Sidheart"],
+      authors: ["Siddhartha Chauhan"],
     },
     twitter: {
       card: "summary_large_image",
-      title: post.metaTitle,
+      title: `${post.metaTitle} | pdfkit.pro`,
+      images: [OG_IMAGE.url],
       description: post.metaDescription,
     },
     alternates: {
-      canonical: `https://pdfkit.pro/blog/${slug}`,
+      canonical: `https://www.pdfkit.pro/blog/${slug}`,
     },
   };
 }
@@ -47,9 +52,9 @@ export default async function BlogPostPage({ params }: Props) {
 
   const articleSchema = getArticleSchema(post.title, post.metaDescription, slug, post.date);
   const breadcrumbSchema = getBreadcrumbSchema([
-    { name: "Home", url: "https://pdfkit.pro" },
-    { name: "Blog", url: "https://pdfkit.pro/blog" },
-    { name: post.title, url: `https://pdfkit.pro/blog/${slug}` },
+    { name: "Home", url: "https://www.pdfkit.pro" },
+    { name: "Blog", url: "https://www.pdfkit.pro/blog" },
+    { name: post.title, url: `https://www.pdfkit.pro/blog/${slug}` },
   ]);
 
   // Simple markdown-ish rendering
@@ -174,7 +179,7 @@ export default async function BlogPostPage({ params }: Props) {
           {/* CTA */}
           <div className="mt-12 glass rounded-2xl p-8 text-center">
             <h2 className="text-xl font-bold mb-2">Ready to Try These Tools?</h2>
-            <p className="text-sm text-muted-foreground mb-4">All 20+ PDF tools are free to use, with no signup required.</p>
+            <p className="text-sm text-muted-foreground mb-4">All 20 PDF tools are free to use, with no signup required.</p>
             <Link href="/tools">
               <Button className="gap-2">
                 Explore All Tools <ArrowRight className="h-4 w-4" />

@@ -11,7 +11,7 @@ import { ToolSEOContent } from "@/components/seo/tool-seo-content";
 
 export default function ReorderPagesPage() {
   const [files, setFiles] = useState<File[]>([]);
-  const [pageCount, setPageCount] = useState(0);
+  const [, setPageCount] = useState(0);
   const [order, setOrder] = useState<number[]>([]);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);

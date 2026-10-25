@@ -11,15 +11,16 @@ import {
 } from "@/lib/schemas";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
+import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://pdfkit.pro"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "PDFKit Pro - Free PDF Editor, Merge, Split, Compress and Chat with PDF",
+    default: "pdfkit.pro - 20 Free PDF Tools That Run in Your Browser",
     template: "%s | pdfkit.pro",
   },
   description:
-    "Free online PDF editor. Merge, split, compress, edit and chat with PDF online. No signup. Privacy first.",
+    "20 free PDF tools that run in your browser: merge, split, compress, edit, sign, convert and more. Files never leave your device. No signup.",
   verification: {
     google: "s8v6tSwpFyV4jO6y-LDeVOVgXSRGEawakx9wtD81G0A",
   },
@@ -35,27 +36,26 @@ export const metadata: Metadata = {
     "online PDF tools",
     "PDF to JPG",
     "chat with PDF",
-    "AI PDF tools",
     "sign PDF",
     "watermark PDF",
   ],
-  authors: [{ name: "Sidheart" }],
-  creator: "Sidheart",
+  authors: [{ name: "Siddhartha Chauhan" }],
+  creator: "Siddhartha Chauhan",
   publisher: "pdfkit.pro",
   openGraph: {
-    title: "PDFKit Pro - Free PDF Editor, Merge, Split, Compress and Chat with PDF",
+    title: "pdfkit.pro - 20 Free PDF Tools That Run in Your Browser",
     description:
-      "Free online PDF editor. Merge, split, compress, edit and chat with PDF online. No signup. Privacy first.",
-    url: "https://pdfkit.pro",
+      "20 free PDF tools that run in your browser: merge, split, compress, edit, sign, convert and more. Files never leave your device. No signup.",
+    url: "/",
     siteName: "pdfkit.pro",
     type: "website",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "PDFKit Pro - Free PDF Editor, Merge, Split, Compress and Chat with PDF",
+    title: "pdfkit.pro - 20 Free PDF Tools That Run in Your Browser",
     description:
-      "Free online PDF editor. Merge, split, compress, edit and chat with PDF online. No signup. Privacy first.",
+      "20 free PDF tools that run in your browser: merge, split, compress, edit, sign, convert and more. Files never leave your device. No signup.",
   },
   robots: {
     index: true,
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: "https://pdfkit.pro",
+    canonical: "/",
   },
   icons: {
     icon: "/icon.svg",

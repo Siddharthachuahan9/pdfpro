@@ -1,15 +1,20 @@
+import { OG_IMAGE, SITE_URL } from "@/lib/site";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { blogPosts } from "@/lib/blog-data";
 import { ArrowRight, Clock, Tag } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Blog - PDF Tips, Guides & Tutorials | pdfkit.pro",
+  title: "Blog - PDF Tips, Guides & Tutorials",
   description: "Learn how to edit, merge, compress, and convert PDFs. Free guides, tips, and tutorials from pdfkit.pro.",
+  alternates: { canonical: `${SITE_URL}/blog` },
   openGraph: {
     title: "Blog - PDF Tips & Guides | pdfkit.pro",
     description: "Free PDF guides, tips, and tutorials.",
+    url: `${SITE_URL}/blog`,
     type: "website",
+    siteName: "pdfkit.pro",
+    images: [OG_IMAGE],
   },
 };
 
