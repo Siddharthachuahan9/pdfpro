@@ -38,8 +38,8 @@ export default function PrivacyPage() {
             },
             {
               icon: Eye,
-              title: "No Tracking",
-              content: "We do not use any analytics, tracking pixels, or third-party scripts. We do not track your usage, your files, or your behavior. We do not use Google Analytics or any similar service.",
+              title: "Page-view counting only",
+              content: "The site counts page views and load times with Vercel Analytics and Vercel Speed Insights. They run without cookies, never see your files and record no personal data. There are no advertising pixels, no Google Analytics and no other third-party trackers. When you use OCR in Extract Text, the browser downloads the Tesseract engine from the jsDelivr CDN; your file is not sent there.",
             },
             {
               icon: Cookie,

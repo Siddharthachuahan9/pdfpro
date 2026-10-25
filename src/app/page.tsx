@@ -212,21 +212,21 @@ export default function Home() {
                 icon: Shield,
                 title: "Privacy First",
                 description:
-                  "Your files never leave your device. Zero data collection. Zero tracking.",
+                  "Your files never leave your device. The site only counts page views with Vercel Analytics.",
                 color: "text-green-500",
               },
               {
                 icon: Zap,
                 title: "Lightning Fast",
                 description:
-                  "Powered by WebAssembly and modern browser APIs. Instant processing.",
+                  "Runs on your browser's own PDF libraries. No upload, no queue, no waiting.",
                 color: "text-yellow-500",
               },
               {
                 icon: WifiOff,
-                title: "Works Offline",
+                title: "No Account",
                 description:
-                  "Once loaded, tools work without internet. Process PDFs anywhere.",
+                  "No signup, no watermarks, no email. Open a tool and use it.",
                 color: "text-blue-500",
               },
               {
@@ -270,8 +270,8 @@ export default function Home() {
           >
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
               {[
-                { value: "20+", label: "PDF Tools" },
-                { value: "0", label: "Data Collected" },
+                { value: "20", label: "PDF Tools" },
+                { value: "0", label: "Files Uploaded" },
                 { value: "100%", label: "Browser Based" },
                 { value: "Free", label: "Forever" },
               ].map((stat) => (

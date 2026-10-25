@@ -20,7 +20,7 @@ export default function AboutPage() {
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             A free, privacy-first PDF toolkit that runs entirely in your browser.
-            No servers, no uploads, no tracking.
+            No servers, no uploads.
           </p>
         </motion.div>
 
@@ -60,18 +60,18 @@ export default function AboutPage() {
             },
             {
               icon: WifiOff,
-              title: "Works Offline",
-              description: "Once the page loads, all tools work without an internet connection.",
+              title: "No Account",
+              description: "No signup, no email and no watermarks. Open a tool and use it.",
             },
             {
               icon: Lock,
               title: "Secure",
-              description: "No data collection, no cookies, no tracking. Your documents stay private.",
+              description: "Your documents never leave your device. The site counts page views with Vercel Analytics, without cookies.",
             },
             {
               icon: Globe,
               title: "Free Forever",
-              description: "All tools are free to use with no limits, no watermarks, and no signup.",
+              description: "All tools are free to use with no watermarks and no signup, up to 100 MB per file.",
             },
             {
               icon: Users,
