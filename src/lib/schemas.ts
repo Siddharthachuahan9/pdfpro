@@ -3,13 +3,8 @@ export function getWebsiteSchema() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "pdfkit.pro",
-    url: "https://pdfkit.pro",
-    description: "Free browser-based PDF tools. Merge, split, compress, convert, edit and chat with PDFs. No uploads, no signup.",
-    potentialAction: {
-      "@type": "SearchAction",
-      target: "https://pdfkit.pro/tools?q={search_term_string}",
-      "query-input": "required name=search_term_string",
-    },
+    url: "https://www.pdfkit.pro",
+    description: "20 free PDF tools that run in your browser. Merge, split, compress, convert, edit, sign and search PDFs. No uploads, no signup.",
   };
 }
 
@@ -18,13 +13,13 @@ export function getOrganizationSchema() {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "pdfkit.pro",
-    url: "https://pdfkit.pro",
-    logo: "https://pdfkit.pro/logo.svg",
-    description: "Free browser-based AI PDF toolkit. All processing runs locally for maximum privacy.",
+    url: "https://www.pdfkit.pro",
+    logo: "https://www.pdfkit.pro/logo.svg",
+    description: "20 free PDF tools that run in your browser. Files never leave your device. The site counts page views with Vercel Analytics.",
     sameAs: [],
     founder: {
       "@type": "Person",
-      name: "Sidheart",
+      name: "Siddhartha Chauhan",
     },
   };
 }
@@ -41,13 +36,8 @@ export function getSoftwareAppSchema() {
       price: "0",
       priceCurrency: "USD",
     },
-    description: "All-in-one browser-based PDF toolkit with 20+ tools. Merge, split, compress, convert, edit, sign, and chat with PDFs.",
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.8",
-      ratingCount: "1250",
-      bestRating: "5",
-    },
+    url: "https://www.pdfkit.pro",
+    description: "Browser-based PDF toolkit with 20 tools. Merge, split, compress, convert, edit, sign and search PDFs. Files never leave your device.",
   };
 }
 
@@ -113,19 +103,19 @@ export function getArticleSchema(
     "@type": "Article",
     headline: title,
     description,
-    url: `https://pdfkit.pro/blog/${slug}`,
+    url: `https://www.pdfkit.pro/blog/${slug}`,
     datePublished,
     dateModified: datePublished,
     author: {
       "@type": "Person",
-      name: "Sidheart",
+      name: "Siddhartha Chauhan",
     },
     publisher: {
       "@type": "Organization",
       name: "pdfkit.pro",
       logo: {
         "@type": "ImageObject",
-        url: "https://pdfkit.pro/logo.svg",
+        url: "https://www.pdfkit.pro/logo.svg",
       },
     },
   };
